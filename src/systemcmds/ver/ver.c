@@ -44,6 +44,7 @@
 #include <string.h>
 #include <version/version.h>
 #include <systemlib/err.h>
+#include <systemlib/mcu_version.h>
 
 // string constants for version commands
 static const char sz_ver_hw_str[] 	= "hw";
@@ -52,6 +53,7 @@ static const char sz_ver_git_str[] 	= "git";
 static const char sz_ver_bdate_str[] = "bdate";
 static const char sz_ver_gcc_str[] 	= "gcc";
 static const char sz_ver_all_str[] 	= "all";
+static const char mcu_ver_str[]		= "mcu";
 
 static void usage(const char *reason)
 {
@@ -59,7 +61,7 @@ static void usage(const char *reason)
 		printf("%s\n", reason);
 	}
 
-	printf("usage: ver {hw|hwcmp|git|bdate|gcc|all}\n\n");
+	printf("usage: ver {hw|hwcmp|git|bdate|gcc|all|mcu}\n\n");
 }
 
 __EXPORT int ver_main(int argc, char *argv[]);
@@ -106,6 +108,29 @@ int ver_main(int argc, char *argv[])
 				printf("FW git-hash: %s\n", FW_GIT);
 				printf("GCC toolchain: %s\n", __VERSION__);
 				ret = 0;
+
+
+			} else if (!strncmp(argv[1], mcu_ver_str, sizeof(mcu_ver_str))) {
+
+				char rev;
+				char* revstr;
+
+				int chip_version = mcu_version(&rev, &revstr);
+
+				if (chip_version < 0) {
+					printf("UNKNOWN MCU");
+					ret = 1;
+
+				} else {
+					printf("MCU: %s, rev. %c\n", revstr, rev);
+
+					if (chip_version < MCU_REV_STM32F4_REV_3) {
+						printf("\n\nWARNING   WARNING   WARNING!\n"
+							"Revision %c has a silicon errata\n"
+							"This device can only utilize a maximum of 1MB flash safely!\n"
+							"http://px4.io/help/errata\n", rev);
+					}
+				}
 
 			} else {
 				errx(1, "unknown command.\n");
