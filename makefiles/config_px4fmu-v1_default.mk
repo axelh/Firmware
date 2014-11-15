@@ -130,7 +130,7 @@ MODULES		+= lib/launchdetection
 #MODULES			+= examples/fixedwing_control
 
 # Hardware test
-#MODULES			+= examples/hwtest
+MODULES			+= examples/hwtest
 
 #
 # Transitional support - add commands from the NuttX export archive.
