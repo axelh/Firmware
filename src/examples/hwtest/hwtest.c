@@ -31,20 +31,50 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+
 /**
  * @file hwtest.c
  *
  * Simple functional hardware test.
  *
- * @author Lorenz Meier <lm@inf.ethz.ch>
  */
 
 #include <nuttx/config.h>
+#include <drivers/drv_gpio.h>
 #include <stdio.h>
-#include <systemlib/err.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <math.h>
+#include <poll.h>
+#include <time.h>
 #include <drivers/drv_hrt.h>
 #include <uORB/uORB.h>
+#include <uORB/topics/sensor_combined.h>
+#include <uORB/topics/vehicle_global_position.h>
+#include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/vehicle_attitude_setpoint.h>
+#include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/actuator_controls.h>
+#include <uORB/topics/vehicle_rates_setpoint.h>
+#include <uORB/topics/vehicle_global_position.h>
+#include <uORB/topics/parameter_update.h>
+#include <uORB/topics/actuator_armed.h>
+#include <systemlib/param/param.h>
+#include <systemlib/pid/pid.h>
+#include <geo/geo.h>
+#include <systemlib/perf_counter.h>
+#include <systemlib/systemlib.h>
+#include <systemlib/err.h>
+
+#include <nuttx/fs/nxffs.h>
+#include <nuttx/fs/ioctl.h>
+#include <arch/board/board.h>
+#include "drivers/drv_pwm_output.h"
+
 
 __EXPORT int ex_hwtest_main(int argc, char *argv[]);
 
@@ -54,8 +84,21 @@ int ex_hwtest_main(int argc, char *argv[])
     memset(&actuators, 0, sizeof(actuators));
     orb_advert_t actuator_pub_fd = orb_advertise(ORB_ID(actuator_controls_0), &actuators);
 
+    struct actuator_armed_s armed;
+    armed.armed = true;
+    /* lock down actuators if required, only in HIL */
+    armed.lockdown = false;
+    orb_advert_t armed_pub = orb_advertise(ORB_ID(actuator_armed), &armed);
+
     int i;
-    float rcvalue = -1.0f;
+    int ret;
+
+    struct pollfd fds;
+    		fds.fd = 0; /* stdin */
+    		fds.events = POLLIN;
+    char c;
+
+    float rcvalue = 1.0f;
     hrt_abstime stime;
 
     while (true) {
@@ -64,10 +107,23 @@ int ex_hwtest_main(int argc, char *argv[])
             for (i=0; i<8; i++)
                 actuators.control[i] = rcvalue;
             actuators.timestamp = hrt_absolute_time(); 
+            orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
             orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
+            usleep(10000);
         }
-        warnx("servos set to %.1f", rcvalue);
-        rcvalue *= -1.0f;
+        rcvalue -= 0.1f;
+
+    	ret = poll(&fds, 1, 0);
+    	if (ret > 0) {
+
+    	read(0, &c, 1);
+    		if (c == 0x03 || c == 0x63 || c == 'q') {
+    			warnx("User abort\n");
+    			exit(0);
+    		}
+    	}
+    	usleep(10000);
+
     }
 
     return OK;

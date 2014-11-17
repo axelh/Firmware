@@ -1,0 +1,2 @@
+MODULE_COMMAND = ROV_mode
+SRCS = ROV_mode.c

@@ -56,25 +56,25 @@ MODULES		+= systemcmds/ver
 #
 # General system control
 #
-MODULES		+= modules/commander
-MODULES		+= modules/navigator
-MODULES		+= modules/mavlink
-MODULES		+= modules/gpio_led
+#MODULES		+= modules/commander
+#MODULES		+= modules/navigator
+#MODULES		+= modules/mavlink
+#MODULES		+= modules/gpio_led
 
 #
 # Estimation modules (EKF / other filters)
 #
-MODULES		+= modules/attitude_estimator_ekf
-MODULES		+= modules/ekf_att_pos_estimator
-MODULES		+= modules/position_estimator_inav
+#MODULES		+= modules/attitude_estimator_ekf
+#MODULES		+= modules/ekf_att_pos_estimator
+#MODULES		+= modules/position_estimator_inav
 
 #
 # Vehicle Control
 #
-MODULES		+= modules/fw_pos_control_l1
-MODULES		+= modules/fw_att_control
-MODULES		+= modules/mc_att_control
-MODULES		+= modules/mc_pos_control
+#MODULES		+= modules/fw_pos_control_l1
+#MODULES		+= modules/fw_att_control
+#MODULES		+= modules/mc_att_control
+#MODULES		+= modules/mc_pos_control
 
 #
 # Logging
@@ -113,24 +113,17 @@ MODULES		+= lib/launchdetection
 # Demo apps
 #
 #MODULES		+= examples/math_demo
-# Tutorial code from
-# https://pixhawk.ethz.ch/px4/dev/hello_sky
 #MODULES		+= examples/px4_simple_app
-
-# Tutorial code from
-# https://pixhawk.ethz.ch/px4/dev/daemon
 #MODULES		+= examples/px4_daemon_app
-
-# Tutorial code from
-# https://pixhawk.ethz.ch/px4/dev/debug_values
 #MODULES		+= examples/px4_mavlink_debug
-
-# Tutorial code from
-# https://pixhawk.ethz.ch/px4/dev/example_fixedwing_control
-#MODULES			+= examples/fixedwing_control
+#MODULES	    += examples/fixedwing_control
+#MODULES	    += examples/ex_gpio
 
 # Hardware test
 MODULES			+= examples/hwtest
+
+# ROV
+MODULES		+= modules/ROV_mode
 
 #
 # Transitional support - add commands from the NuttX export archive.
