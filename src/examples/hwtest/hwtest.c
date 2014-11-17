@@ -69,6 +69,7 @@
 #include <systemlib/perf_counter.h>
 #include <systemlib/systemlib.h>
 #include <systemlib/err.h>
+#include <sys/ioctl.h>
 
 #include <nuttx/fs/nxffs.h>
 #include <nuttx/fs/ioctl.h>
@@ -96,8 +97,9 @@ int ex_hwtest_main(int argc, char *argv[])
     struct pollfd fds;
     		fds.fd = 0; /* stdin */
     		fds.events = POLLIN;
+    		int fd = open(&PWM_OUTPUT_DEVICE_PATH, 0);
     char c;
-
+    printf("hi\n");
     float rcvalue = 1.0f;
     hrt_abstime stime;
 
@@ -111,7 +113,15 @@ int ex_hwtest_main(int argc, char *argv[])
             orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
             usleep(10000);
         }
-        rcvalue -= 0.1f;
+        rcvalue -= 0.05f;
+/* Plot pwm values to terminal */
+		for (unsigned k = 0; k < 4; k++) {
+			servo_position_t spos;
+			ret = ioctl(fd, PWM_SERVO_GET(k), (unsigned long)&spos);
+			if (ret == OK) {
+				printf("channel %u: %u us\n", k+1, spos);
+			}
+		}
 
     	ret = poll(&fds, 1, 0);
     	if (ret > 0) {
