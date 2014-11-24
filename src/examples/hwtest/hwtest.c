@@ -81,60 +81,130 @@ __EXPORT int ex_hwtest_main(int argc, char *argv[]);
 
 int ex_hwtest_main(int argc, char *argv[])
 {
+	/* Initialize actuator actuator struct and set it to zero*/
     struct actuator_controls_s actuators;
     memset(&actuators, 0, sizeof(actuators));
-    orb_advert_t actuator_pub_fd = orb_advertise(ORB_ID(actuator_controls_0), &actuators);
 
+	/* Initialize armed struct and set ini values*/
     struct actuator_armed_s armed;
     armed.armed = true;
-    /* lock down actuators if required, only in HIL */
-    armed.lockdown = false;
+    armed.lockdown = false; /* lock down actuators if required, only in HIL */
+
+	/* Advertise actuator and armed topics and publish ini values*/
     orb_advert_t armed_pub = orb_advertise(ORB_ID(actuator_armed), &armed);
+    orb_advert_t actuator_pub_fd = orb_advertise(ORB_ID(actuator_controls_0), &actuators);
 
-    int i;
+    /* subscribe to sensor_combined topic */
+    int sensor_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
+    orb_set_interval(sensor_sub_fd, 1000);
+
+    /* Initialize aux variables and abs time variable */
+    int i ;
     int ret;
+    char c_key;
+    hrt_abstime stime;
+    float rcvalue = 0.0f;
 
+    /* Key pressed event */
     struct pollfd fds;
     		fds.fd = 0; /* stdin */
     		fds.events = POLLIN;
-    		int fd = open(&PWM_OUTPUT_DEVICE_PATH, 0);
-    char c;
-    printf("hi\n");
-    float rcvalue = 1.0f;
-    hrt_abstime stime;
+    /* Open PWM device driver*/
+    int fd = open(&PWM_OUTPUT_DEVICE_PATH, 0);
 
+    /* Print to console */
+    printf("Start. Press g after ESCs ready. \n");
+
+    /* Main loop */
     while (true) {
-        stime = hrt_absolute_time();
-        while (hrt_absolute_time() - stime < 1000000) {
-            for (i=0; i<8; i++)
-                actuators.control[i] = rcvalue;
-            actuators.timestamp = hrt_absolute_time(); 
-            orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
-            orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
-            usleep(10000);
-        }
-        rcvalue -= 0.05f;
-/* Plot pwm values to terminal */
-		for (unsigned k = 0; k < 4; k++) {
-			servo_position_t spos;
-			ret = ioctl(fd, PWM_SERVO_GET(k), (unsigned long)&spos);
-			if (ret == OK) {
-				printf("channel %u: %u us\n", k+1, spos);
-			}
-		}
+    	/* start main loop by publishing zero values to actuators to start ESCs */
 
-    	ret = poll(&fds, 1, 0);
-    	if (ret > 0) {
-
-    	read(0, &c, 1);
-    		if (c == 0x03 || c == 0x63 || c == 'q') {
-    			warnx("User abort\n");
-    			exit(0);
+    	/* Publish zero */
+    	for (i=0; i<4; i++){
+    		actuators.control[i] = rcvalue;
+    		actuators.timestamp = hrt_absolute_time();
+    		orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
+    		orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
     		}
-    	}
     	usleep(10000);
 
-    }
+    	/* Check whether key pressed */
+    	ret = poll(&fds, 1, 0);
+    	if (ret > 0) {		/* If key pressed event occured */
+    		read(0, &c_key, 1);
 
+    		if (c_key == 0x67) { /* If "g" key pressed go into servo sweep loop*/
+    			warnx("Start\n");
+
+    			/* Set rcvalue to PWM_min to initialize sweep */
+    			rcvalue = -1.0f;
+
+    			/* Perform a servo sweep. Can be aborted with "c" key */
+    			while (true) {
+
+    				stime = hrt_absolute_time();
+
+    				while (hrt_absolute_time() - stime < 1000000) {		/* Keep pwm value for 1sec */
+    					for (i=0; i<4; i++){
+    						actuators.control[i] = rcvalue;
+    					}
+
+    					/* Publish pwm values */
+    					actuators.timestamp = hrt_absolute_time();
+    					orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
+    					orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
+    					usleep(10000);
+
+    				}
+
+    				/*Change pwm value*/
+    				rcvalue += 0.05f;
+
+    				/* Plot pwm values to terminal */
+    				for (unsigned k = 0; k < 4; k++) {
+    					servo_position_t spos;
+    					ret = ioctl(fd, PWM_SERVO_GET(k), (unsigned long)&spos);
+    					if (ret == OK) {
+    						printf("channel %u: %u us\n", k+1, spos);
+    					}
+    				}
+
+    				/* Obtain and Print Sensor data */
+					struct sensor_combined_s raw;
+					/* copy sensors raw data into local buffer */
+					orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
+					/* Print values */
+					printf("Gyro:\t%8.4f\t%8.4f\t%8.4f\n",
+						(double)raw.gyro1_rad_s[0],
+						(double)raw.gyro1_rad_s[1],
+						(double)raw.gyro1_rad_s[2]);
+
+					/* Abort routine */
+					ret = poll(&fds, 1, 0);
+					if (ret > 0) {	/*if key pressed*/
+						read(0, &c_key, 1);
+
+						if (c_key == 0x03 || c_key == 0x63 || c_key == 'q') {/*if c key pressed*/
+							warnx("User abort\n");
+							/*Stop servos*/
+							for (i=0; i<4; i++){
+								actuators.control[i] = 0.0f;
+							}
+							actuators.timestamp = hrt_absolute_time();
+							orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
+							orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
+
+							usleep(10000);
+
+							exit(0); /*return*/
+						}
+					}
+					usleep(10000);
+
+    			}
+
+    		}
+    	}
+    }
     return OK;
 }

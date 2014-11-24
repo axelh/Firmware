@@ -113,7 +113,7 @@ MODULES		+= lib/launchdetection
 # Demo apps
 #
 #MODULES		+= examples/math_demo
-#MODULES		+= examples/px4_simple_app
+MODULES		+= examples/px4_simple_app
 #MODULES		+= examples/px4_daemon_app
 #MODULES		+= examples/px4_mavlink_debug
 #MODULES	    += examples/fixedwing_control
