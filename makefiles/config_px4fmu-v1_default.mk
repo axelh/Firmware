@@ -123,7 +123,7 @@ MODULES		+= examples/px4_simple_app
 MODULES			+= examples/hwtest
 
 # ROV
-MODULES		+= modules/ROV_mode
+MODULES		+= modules/ROV
 
 #
 # Transitional support - add commands from the NuttX export archive.
