@@ -111,7 +111,7 @@ int ROV_main(int argc, char *argv[])
     char c_key;
     float rcvalue = 0.0f;
     hrt_abstime stime;
-	/* Obtain Sensor data */
+	/* Initialize sensor struct */
 	struct sensor_combined_s raw;
 
     /* Key pressed event */
@@ -155,10 +155,14 @@ int ROV_main(int argc, char *argv[])
 			    		actuators.control[k] = 0.0f;
 			    	}
 
-    				ret = poll(&fds, 1, 0);
+			    	usleep(10000);
 
+    				ret = poll(&fds, 1, 0);
+    				fflush(stdin);
     				    	if (ret > 0) {
     				    		read(0,&c_key,1);
+    				    		fflush(stdin);
+
     				    		switch (c_key){
 				    		    	// roll
     				    			case 0x71:		// q
@@ -252,7 +256,6 @@ int ROV_main(int argc, char *argv[])
 
     	    				stime = hrt_absolute_time();
     				    	}
-    				    	fflush(stdin);
     				    	fflush( stdout );
     					usleep(20000);
     				}
