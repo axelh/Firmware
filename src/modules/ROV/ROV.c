@@ -79,12 +79,7 @@
 /**
  * Daemon management function.
  */
-
-
 __EXPORT int ROV_main(int argc, char *argv[]);
-
-
-
 
 int ROV_main(int argc, char *argv[])
 {
@@ -155,7 +150,7 @@ int ROV_main(int argc, char *argv[])
 			    		actuators.control[k] = 0.0f;
 			    	}
 
-			    	usleep(10000);
+			    	usleep(20000);
 
     				ret = poll(&fds, 1, 0);
     				fflush(stdin);
@@ -188,6 +183,10 @@ int ROV_main(int argc, char *argv[])
 									// Acc
     								case 0x6c:         // l
     									actuators.control[3] = +1.0f;
+    							    break;
+    								// Rev. Acc
+    							    case 0x6e:         // n
+    									actuators.control[3] = -1.0f;
     								break;
 									// Emergency stop
     								case 0x70:         // p
@@ -231,7 +230,7 @@ int ROV_main(int argc, char *argv[])
     				    			servo_position_t spos;
     				    			ret = ioctl(fd, PWM_SERVO_GET(k), (unsigned long)&spos);
     				    			if (ret == OK) {
-    				    				printf("channel %u: %u us\n", k+1, spos);
+    				    				printf("pwm channel %u: %u us\n", k+1, spos);
     				    			}
     				    		}
 
@@ -239,6 +238,13 @@ int ROV_main(int argc, char *argv[])
         				    orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
 
     				    	/* Print sensor values */
+
+    				    	printf("Snrs:\n Pres:\t%8.4f\n",
+    				    			(double)raw.baro_pres_mbar);
+
+    				    	printf("Temp:\t%8.4f\n",
+    				    			(double)raw.baro_temp_celcius);
+
         				    printf("Mag:\t%8.4f\t%8.4f\t%8.4f\n",
         				    		(double)raw.magnetometer_ga[0],
         				    		(double)raw.magnetometer_ga[1],
@@ -257,7 +263,7 @@ int ROV_main(int argc, char *argv[])
     	    				stime = hrt_absolute_time();
     				    	}
     				    	fflush( stdout );
-    					usleep(20000);
+    					usleep(10000);
     				}
     			}
     		}
