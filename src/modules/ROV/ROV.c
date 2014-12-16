@@ -183,11 +183,18 @@ int ROV_main(int argc, char *argv[])
 									// Acc
     								case 0x6c:         // l
     									actuators.control[3] = +1.0f;
-    							    break;
+									break;
     								// Rev. Acc
     							    case 0x6e:         // n
     									actuators.control[3] = -1.0f;
     								break;
+									// gyro controlled
+    								case 0x78:         // x
+    		        				    /* copy sensors raw data into local buffer */
+    		        				    orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
+    		        				    actuators.control[2] = - 0.2f * raw.gyro1_rad_s[2] ;
+    		        				    actuators.control[2] = - 0.2f * raw.gyro1_rad_s[2];
+    							    break;
 									// Emergency stop
     								case 0x70:         // p
     									actuators.control[0] = 0.0f;
@@ -195,7 +202,14 @@ int ROV_main(int argc, char *argv[])
     									actuators.control[2] = 0.0f;
     									actuators.control[3] = 0.0f;
     								break;
-    									//User abort
+									// Emergency stop
+    								case 0x20:         // space
+    									actuators.control[0] = 0.0f;
+    									actuators.control[1] = 0.0f;
+    									actuators.control[2] = 0.0f;
+    									actuators.control[3] = 0.0f;
+    								break;
+									//User abort
     								case 0x63:         //c
     									warnx("User abort\n");
     									/*Stop servos*/
