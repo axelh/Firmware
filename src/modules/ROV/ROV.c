@@ -114,6 +114,16 @@ int ROV_main(int argc, char *argv[])
     		fds.fd = 0; /* stdin */
     		fds.events = POLLIN;
 
+
+			// controller tuning parameters
+			float k_ax = 0.05f;
+			float k_ay = k_ax;
+			float c_ax = 0.5f; //
+			float c_ay = c_ax;
+			float k_omz = 1.0f; // yaw rate gain
+			float omz_set = 0.0f; // approx 30° per second setpoint
+			float k_thrust = 0.0f;
+
     /* Open PWM device driver*/
     int fd = open(&PWM_OUTPUT_DEVICE_PATH, 0);
 
@@ -138,7 +148,25 @@ int ROV_main(int argc, char *argv[])
     	if (ret > 0) {		/* If key pressed event occured */
     		read(0, &c_key, 1);
 
-    		if (c_key == 0x67) { /* If "g" key pressed go into key control loop*/
+    		if (c_key == 0x63) { // If "c" key pressed go into control gain setup
+			    printf("Press key\n");
+			    printf("1 for k_ax = %8.4f\n",(double)k_ax);
+			    printf("2 for k_ay = %8.4f\n",(double)k_ay);
+			    printf("3 for c_ax = %8.4f\n",(double)c_ax);
+			    printf("4 for c_ay = %8.4f\n",(double)c_ay);
+			    printf("5 for k_omz = %8.4f\n",(double)k_omz);
+	    		read(0, &c_key, 1);
+	    		switch (c_key){
+	    			case 0x31: //1
+	    				printf("function not implemented yet");
+					break;
+	    			default:
+	    				printf("function not implemented yet");
+					break;
+	    		}
+    		}
+
+    		if (c_key == 0x67) { // If "g" key pressed go into key control loop
     			warnx("Start\n");
 
 				stime = hrt_absolute_time();
@@ -159,6 +187,29 @@ int ROV_main(int argc, char *argv[])
     				    		fflush(stdin);
 
     				    		switch (c_key){
+									//User abort
+									case 0x63:         //c
+										warnx("User abort\n");
+										//Stop servos
+										for (i=0; i<4; i++){
+											actuators.control[i] = 0.0f;
+										}
+										actuators.timestamp = hrt_absolute_time();
+										orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
+										orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
+
+										usleep(10000);
+
+										exit(0); //return
+									break;
+									// Emergency stop
+									case 0x20:         // space
+										actuators.control[0] = 0.0f;
+										actuators.control[1] = 0.0f;
+										actuators.control[2] = 0.0f;
+										actuators.control[3] = 0.0f;
+									break;
+
 				    		    	// roll
     				    			case 0x71:		// q
     				    				actuators.control[0] = -1.0f;
@@ -181,19 +232,121 @@ int ROV_main(int argc, char *argv[])
     									actuators.control[2] = +1.0f;
     								break;
 									// Acc
-    								case 0x6c:         // l
+    								case 0x72:         // r
     									actuators.control[3] = +1.0f;
 									break;
     								// Rev. Acc
-    							    case 0x6e:         // n
+    							    case 0x66:         // f
     									actuators.control[3] = -1.0f;
     								break;
+
+									// gyro & acc stabilized mode
+    								//  keyboard control centered around j - neutral h,g left, k,l right, one/two row up forward, one row down backward
+    							    default:
+    							    	switch (c_key){
+										// neutral position stabilizing
+										case 0x6A:		// j
+											k_thrust = 0.0f;
+											omz_set =  0.0f;
+										break;
+										case 0x68:		// h
+											k_thrust = 0.0f;
+											omz_set = -0.4f;
+										break;
+										case 0x67:		// g
+											k_thrust = 0.0f;
+											omz_set = -1.0f;
+										break;
+										case 0x6B:		// k
+											k_thrust = 0.0f;
+											omz_set = 0.4f;
+										break;
+										case 0x6C:		// l
+											k_thrust = 0.0f;
+											omz_set = 1.0f;
+										break;
+										case 0x75:		// u
+											k_thrust = 0.3f;
+											omz_set = 0.0f;
+										break;
+										case 0x7A:		// z
+											k_thrust = 0.3f;
+											omz_set = -0.4f;
+										break;
+										case 0x74:		// t
+											k_thrust = 0.3f;
+											omz_set = -1.0f;
+										break;
+										case 0x69:		// i
+											k_thrust = 0.3f;
+											omz_set = 0.4f;
+										break;
+										case 0x6F:		// o
+											k_thrust = 0.3f;
+											omz_set = 1.0f;
+										break;
+										case 0x6D:		// m
+											k_thrust = -0.3f;
+											omz_set = 0.0f;
+										break;
+										case 0x6E:		// n
+											k_thrust = -0.3f;
+											omz_set = -0.4f;
+										break;
+										case 0x62:		// b
+											k_thrust = -0.3f;
+											omz_set = -1.0f;
+										break;
+										case 0x2C:		// ,
+											k_thrust = -0.3f;
+											omz_set = 0.4f;
+										break;
+										case 0x2E:		// .
+											k_thrust = -0.3f;
+											omz_set = 1.0f;
+										break;
+										default:
+											k_thrust = 0.0f;
+											omz_set = 0.0f;
+											actuators.control[0] = 0.0f;
+											actuators.control[1] = 0.0f;
+											actuators.control[2] = 0.0f;
+											actuators.control[3] = 0.0f;
+										break;
+    							    }
+									// gyro controlled
+									// copy sensors raw data into local buffer
+									orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
+									// roll moment when y-axis is not horizontal
+									actuators.control[0] = - k_ay * raw.accelerometer_m_s2[1];
+									// pitch moment when x-axis is not horizontal
+									actuators.control[1] = k_ax * raw.accelerometer_m_s2[0];
+									// yaw moment when omz not omz_set and y and x axes are in horizontal plane
+									actuators.control[2] = k_omz * (omz_set - raw.gyro1_rad_s[2])
+											/(1+abs(c_ax*raw.accelerometer_m_s2[0])+abs(c_ay*raw.accelerometer_m_s2[1]));
+									// forward thrust when nose is directed horizontally
+									actuators.control[3] = k_thrust
+											/(1+abs(c_ax*raw.accelerometer_m_s2[0])+abs(c_ay*raw.accelerometer_m_s2[1]));
+	    				    		break; // default
+
+
+    				    		/*
 									// gyro controlled
     								case 0x78:         // x
-    		        				    /* copy sensors raw data into local buffer */
+    		        				    // copy sensors raw data into local buffer
     		        				    orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
-    		        				    actuators.control[2] = - 0.2f * raw.gyro1_rad_s[2] ;
-    		        				    actuators.control[2] = - 0.2f * raw.gyro1_rad_s[2];
+    		        				    // roll moment when y-axis is not horizontal
+    		        				    actuators.control[0] = - k_ay * raw.accelerometer_m_s2[1];
+    		        				    // pitch moment when x-axis is not horizontal
+    		        				    actuators.control[1] = k_ax * raw.accelerometer_m_s2[0];
+    		        				    // yaw moment when omz not omz_set and y and x axes are in horizontal plane
+    		        				    actuators.control[2] = k_omz * (omz_set - raw.gyro1_rad_s[2])
+    		        				    		/(1+abs(k_ax*raw.accelerometer_m_s2[0]))
+    		        				    		/(1+abs(k_ay*raw.accelerometer_m_s2[1]));
+    		        				    // forward thrust when nose is directed horizontally
+    		        				    actuators.control[3] = k_thrust
+    		        				    		/(1+abs(k_ax*raw.accelerometer_m_s2[0]))
+    		        				    		/(1+abs(k_ay*raw.accelerometer_m_s2[1]));
     							    break;
 									// Emergency stop
     								case 0x70:         // p
@@ -201,29 +354,8 @@ int ROV_main(int argc, char *argv[])
     									actuators.control[1] = 0.0f;
     									actuators.control[2] = 0.0f;
     									actuators.control[3] = 0.0f;
-    								break;
-									// Emergency stop
-    								case 0x20:         // space
-    									actuators.control[0] = 0.0f;
-    									actuators.control[1] = 0.0f;
-    									actuators.control[2] = 0.0f;
-    									actuators.control[3] = 0.0f;
-    								break;
-									//User abort
-    								case 0x63:         //c
-    									warnx("User abort\n");
-    									/*Stop servos*/
-    									for (i=0; i<4; i++){
-    										actuators.control[i] = 0.0f;
-    									}
-    									actuators.timestamp = hrt_absolute_time();
-    									orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
-    									orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
+    								break;*/
 
-    									usleep(10000);
-
-    									exit(0); /*return*/
-    								break;
     								}
         				    	/* sanity check and publish actuator outputs */
         				    	if (isfinite(actuators.control[0]) &&
