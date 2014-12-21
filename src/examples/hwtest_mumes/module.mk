@@ -35,6 +35,6 @@
 # Hardware test example application
 #
 
-MODULE_COMMAND	= ex_hwtest
+MODULE_COMMAND	= ex_hwtest_mumes
 
-SRCS		= hwtest.c
+SRCS		= hwtest_mumes.c

@@ -33,7 +33,7 @@
  ****************************************************************************/
 
 /**
- * @file hwtest.c
+ * @file hwtest_mumes.c
  *
  * Simple functional hardware test.
  *
@@ -77,9 +77,9 @@
 #include "drivers/drv_pwm_output.h"
 
 
-__EXPORT int ex_hwtest_main(int argc, char *argv[]);
+__EXPORT int ex_hwtest_mumes_main(int argc, char *argv[]);
 
-int ex_hwtest_main(int argc, char *argv[])
+int ex_hwtest_mumes_main(int argc, char *argv[])
 {
 	/* Initialize actuator  struct and set it to zero*/
     struct actuator_controls_s actuators;
