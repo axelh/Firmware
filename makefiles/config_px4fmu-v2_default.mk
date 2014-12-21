@@ -34,17 +34,13 @@ MODULES		+= drivers/gps
 MODULES		+= drivers/hil
 MODULES		+= drivers/hott/hott_telemetry
 MODULES		+= drivers/hott/hott_sensors
-<<<<<<< HEAD
+
 MODULES		+= drivers/blinkm
 #MODULES		+= drivers/airspeed
 #MODULES		+= drivers/ets_airspeed
 #MODULES		+= drivers/meas_airspeed
 =======
-# MODULES		+= drivers/blinkm
-MODULES		+= drivers/airspeed
-MODULES		+= drivers/ets_airspeed
-MODULES		+= drivers/meas_airspeed
->>>>>>> d54b46355ce0f8c128a5e7fce94564c7cb338987
+
 MODULES		+= drivers/frsky_telemetry
 MODULES		+= modules/sensors
 MODULES		+= drivers/mkblctrl
@@ -89,18 +85,14 @@ MODULES		+= systemcmds/ver
 # Vehicle Control
 #
 #MODULES		+= modules/segway # XXX Needs GCC 4.7 fix
-<<<<<<< HEAD
+
+=======
 #MODULES		+= modules/fw_pos_control_l1
 #MODULES		+= modules/fw_att_control
 #MODULES		+= modules/mc_att_control
 #MODULES		+= modules/mc_pos_control
-=======
-MODULES		+= modules/fw_pos_control_l1
-MODULES		+= modules/fw_att_control
-MODULES		+= modules/mc_att_control
-MODULES		+= modules/mc_pos_control
-MODULES 	+= modules/vtol_att_control
->>>>>>> d54b46355ce0f8c128a5e7fce94564c7cb338987
+#MODULES 	+= modules/vtol_att_control
+
 
 #
 # Logging
@@ -150,6 +142,9 @@ MODULES			+= examples/hwtest
 
 # ROV
 MODULES		+= modules/ROV
+
+# Generate parameter XML file
+GEN_PARAM_XML = 1
 
 # Generate parameter XML file
 GEN_PARAM_XML = 1

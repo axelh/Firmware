@@ -130,6 +130,9 @@ MODULES		+= modules/ROV
 # Generate parameter XML file
 GEN_PARAM_XML = 1
 
+# Generate parameter XML file
+GEN_PARAM_XML = 1
+
 #
 # Transitional support - add commands from the NuttX export archive.
 #
