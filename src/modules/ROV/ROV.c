@@ -69,7 +69,6 @@
 #include <nuttx/fs/ioctl.h>
 #include <arch/board/board.h>
 #include "drivers/drv_pwm_output.h"
-#include "drivers/drv_pwm_output.h"
 
 /* process-specific header files
 #include "params.h" */
@@ -362,13 +361,13 @@ int ROV_main(int argc, char *argv[])
         				    		isfinite(actuators.control[1]) &&
         				    		isfinite(actuators.control[2]) &&
         				    		isfinite(actuators.control[3])) {
-        				    	}
-    				    	}
+
 
 			    			actuators.timestamp = hrt_absolute_time();
 			    			orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
 			    			orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
-
+        				    	}
+    				    	}
     				    	/* Plot to terminal */
     				    	if (hrt_absolute_time() - stime > 500000){
     				    		/* Plot pwm values  */
