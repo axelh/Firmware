@@ -113,15 +113,15 @@ int ROV_main(int argc, char *argv[])
     		fds.fd = 0; /* stdin */
     		fds.events = POLLIN;
 
-
 			// controller tuning parameters
-			float k_ax = 0.05f;
-			float k_ay = k_ax;
-			float c_ax = 0.5f; //
-			float c_ay = c_ax;
+			float k_ax = 0.2f; // gain for uprighting moment (pitch)
+			float k_ay = k_ax; // gain for roll compensator
+			float c_ax = 0.5f; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (x-axis)
+			float c_ay = c_ax; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (y-axis)
 			float k_omz = 1.0f; // yaw rate gain
-			float omz_set = 0.0f; // approx 30° per second setpoint
-			float k_thrust = 0.0f;
+			float omz_set = 0.0f; // setpoint yaw rate
+			float k_thrust = 0.3f; // forward thrust gain
+			float thrust_set = 0.0f; // thrust setpoint
 
     /* Open PWM device driver*/
     int fd = open(&PWM_OUTPUT_DEVICE_PATH, 0);
@@ -245,67 +245,103 @@ int ROV_main(int argc, char *argv[])
     							    	switch (c_key){
 										// neutral position stabilizing
 										case 0x6A:		// j
-											k_thrust = 0.0f;
+											thrust_set = 0.0f;
 											omz_set =  0.0f;
 										break;
 										case 0x68:		// h
-											k_thrust = 0.0f;
+											thrust_set = 0.0f;
 											omz_set = -0.4f;
 										break;
 										case 0x67:		// g
-											k_thrust = 0.0f;
+											thrust_set = 0.0f;
 											omz_set = -1.0f;
 										break;
 										case 0x6B:		// k
-											k_thrust = 0.0f;
+											thrust_set = 0.0f;
 											omz_set = 0.4f;
 										break;
 										case 0x6C:		// l
-											k_thrust = 0.0f;
+											thrust_set = 0.0f;
 											omz_set = 1.0f;
 										break;
 										case 0x75:		// u
-											k_thrust = 0.3f;
+											thrust_set = 0.3f;
 											omz_set = 0.0f;
 										break;
 										case 0x7A:		// z
-											k_thrust = 0.3f;
+											thrust_set = 0.3f;
 											omz_set = -0.4f;
 										break;
 										case 0x74:		// t
-											k_thrust = 0.3f;
+											thrust_set = 0.3f;
 											omz_set = -1.0f;
 										break;
 										case 0x69:		// i
-											k_thrust = 0.3f;
+											thrust_set = 0.3f;
 											omz_set = 0.4f;
 										break;
 										case 0x6F:		// o
-											k_thrust = 0.3f;
+											thrust_set = 0.3f;
 											omz_set = 1.0f;
 										break;
 										case 0x6D:		// m
-											k_thrust = -0.3f;
+											thrust_set = -0.3f;
 											omz_set = 0.0f;
 										break;
 										case 0x6E:		// n
-											k_thrust = -0.3f;
+											thrust_set = -0.3f;
 											omz_set = -0.4f;
 										break;
 										case 0x62:		// b
-											k_thrust = -0.3f;
+											thrust_set = -0.3f;
 											omz_set = -1.0f;
 										break;
 										case 0x2C:		// ,
-											k_thrust = -0.3f;
+											thrust_set = -0.3f;
 											omz_set = 0.4f;
 										break;
 										case 0x2E:		// .
-											k_thrust = -0.3f;
+											thrust_set = -0.3f;
 											omz_set = 1.0f;
 										break;
+										case 0x55:     // U thrust gain +.1
+											k_thrust = k_thrust + 0.1f;
+											printf("k_thrust = %8.4f",(double)k_thrust);
+										break;
+										case 0x4D:     // M thrust gain -.1
+											k_thrust = k_thrust - 0.1f;
+											printf("k_thrust = %8.4f",(double)k_thrust);
+										break;
+										case 0x4B:     // K yaw rate gain +.1
+											k_omz = k_omz + 0.1f;
+											printf("c_ax/y = %8.4f",(double)k_omz);
+										break;
+										case 0x48:     // H yaw rate gain -.1
+											k_omz = k_omz - 0.1f;
+											printf("k_omz = %8.4f",(double)k_omz);
+										break;
+										case 0x5A:     // Z
+											k_ax = k_ax + 0.1f;
+											k_ay = k_ax;
+											printf("k_ax/y = %8.4f",(double)k_ax);
+										break;
+										case 0x4E:     // N
+											k_ax = k_ax - 0.1f;
+											k_ay = k_ax;
+											printf("k_ax/y = %8.4f",(double)k_ax);
+										break;
+										case 0x49:     // I
+											c_ax = c_ax + 0.1f;
+											c_ay = c_ax;
+											printf("c_ax/y = %8.4f",(double)c_ax);
+										break;
+										case 0x3B:     // ;
+											c_ax = c_ax - 0.1f;
+											c_ay = c_ax;
+											printf("c_ax/y = %8.4f",(double)c_ax);
+										break;
 										default:
-											k_thrust = 0.0f;
+											thrust_set = 0.0f;
 											omz_set = 0.0f;
 											actuators.control[0] = 0.0f;
 											actuators.control[1] = 0.0f;
@@ -324,7 +360,7 @@ int ROV_main(int argc, char *argv[])
 									actuators.control[2] = k_omz * (omz_set - raw.gyro1_rad_s[2])
 											/(1+abs(c_ax*raw.accelerometer_m_s2[0])+abs(c_ay*raw.accelerometer_m_s2[1]));
 									// forward thrust when nose is directed horizontally
-									actuators.control[3] = k_thrust
+									actuators.control[3] = k_thrust * thrust_set
 											/(1+abs(c_ax*raw.accelerometer_m_s2[0])+abs(c_ay*raw.accelerometer_m_s2[1]));
 	    				    		break; // default
 
