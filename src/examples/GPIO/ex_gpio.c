@@ -1,7 +1,11 @@
 /****************************************************************************
  *
+<<<<<<< HEAD:src/examples/GPIO/ex_gpio.c
  *   Copyright (C) 2012 PX4 Development Team. All rights reserved.
  *   Author: @author Example User <mail@example.com>
+=======
+ *   Copyright (c) 2013, 2014 PX4 Development Team. All rights reserved.
+>>>>>>> d54b46355ce0f8c128a5e7fce94564c7cb338987:src/examples/hwtest/hwtest.c
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,8 +37,17 @@
  ****************************************************************************/
 
 /**
+<<<<<<< HEAD:src/examples/GPIO/ex_gpio.c
  * @file px4_simple_app.c
  * Minimal application example for PX4 autopilot
+=======
+ * @file hwtest.c
+ *
+ * Simple output test.
+ * @ref Documentation https://pixhawk.org/dev/examples/write_output
+ *
+ * @author Lorenz Meier <lm@inf.ethz.ch>
+>>>>>>> d54b46355ce0f8c128a5e7fce94564c7cb338987:src/examples/hwtest/hwtest.c
  */
 
 #include <nuttx/config.h>
@@ -44,9 +57,8 @@
 #include <string.h>
 #include <drivers/drv_gpio.h>
 
-#include <uORB/uORB.h>
-#include <uORB/topics/sensor_combined.h>
-#include <uORB/topics/vehicle_attitude.h>
+
+
 
 __EXPORT int ex_gpio_main(int argc, char *argv[]);
 
@@ -73,4 +85,5 @@ int ex_gpio_main(int argc, char *argv[])
 
 
 	return 0;
+
 }
