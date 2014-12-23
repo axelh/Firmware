@@ -32,16 +32,15 @@ MODULES		+= drivers/ll40ls
 # MODULES		+= drivers/trone
 MODULES		+= drivers/gps
 MODULES		+= drivers/hil
-MODULES		+= drivers/hott/hott_telemetry
-MODULES		+= drivers/hott/hott_sensors
+#MODULES		+= drivers/hott/hott_telemetry
+#MODULES		+= drivers/hott/hott_sensors
 
-MODULES		+= drivers/blinkm
+#MODULES		+= drivers/blinkm
 #MODULES		+= drivers/airspeed
 #MODULES		+= drivers/ets_airspeed
 #MODULES		+= drivers/meas_airspeed
-=======
 
-MODULES		+= drivers/frsky_telemetry
+#MODULES		+= drivers/frsky_telemetry
 MODULES		+= modules/sensors
 MODULES		+= drivers/mkblctrl
 #MODULES		+= drivers/px4flow
@@ -56,7 +55,7 @@ MODULES		+= systemcmds/param
 MODULES		+= systemcmds/perf
 MODULES		+= systemcmds/preflight_check
 MODULES		+= systemcmds/pwm
-MODULES		+= systemcmds/esc_calib
+#MODULES		+= systemcmds/esc_calib
 MODULES		+= systemcmds/reboot
 MODULES		+= systemcmds/top
 MODULES		+= systemcmds/config
@@ -86,7 +85,6 @@ MODULES		+= systemcmds/ver
 #
 #MODULES		+= modules/segway # XXX Needs GCC 4.7 fix
 
-=======
 #MODULES		+= modules/fw_pos_control_l1
 #MODULES		+= modules/fw_att_control
 #MODULES		+= modules/mc_att_control
@@ -131,14 +129,14 @@ MODULES		+= modules/bottle_drop
 # Demo apps
 #
 #MODULES		+= examples/math_demo
-MODULES			+= examples/px4_simple_app
+#MODULES			+= examples/px4_simple_app
 #MODULES		+= examples/px4_daemon_app
 #MODULES		+= examples/px4_mavlink_debug
 #MODULES	    += examples/fixedwing_control
 #MODULES	    += examples/ex_gpio
 
 # Hardware test
-MODULES			+= examples/hwtest
+#MODULES			+= examples/hwtest
 
 # ROV
 MODULES		+= modules/ROV
