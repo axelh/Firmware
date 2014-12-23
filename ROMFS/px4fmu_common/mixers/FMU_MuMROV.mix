@@ -4,9 +4,9 @@ MuM AUV Mixer for PX4FMU
 This file defines mixers for MuM AUV suitable for testing.
 Scaling down to 40% of full throttle.
 
-Motor Configuration
+Motor Configuration (from aft of vehicle)
 -------------------
-         
+
           CW 1
           *  *          
        *        *       
@@ -47,8 +47,9 @@ S: 0 3  +10000  +10000     0 -10000  10000
 CCW 4
 ----
 M: 4
-O:       4000     4000    0  -4000   4000
+O:        4000    4000    0  -4000   4000
 S: 0 0  +10000  +10000    0 -10000  10000
 S: 0 1       0       0    0 -10000  10000
 S: 0 2  +10000  +10000    0 -10000  10000
 S: 0 3  +10000  +10000    0 -10000  10000
+

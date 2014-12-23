@@ -120,7 +120,7 @@ int ROV_main(int argc, char *argv[])
 			float c_ay = c_ax; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (y-axis)
 			float k_omz = 1.0f; // yaw rate gain
 			float omz_set = 0.0f; // setpoint yaw rate
-			float k_thrust = 0.3f; // forward thrust gain
+			float k_thrust = 1.0f; // forward thrust gain
 			float thrust_set = 0.0f; // thrust setpoint
 
     /* Open PWM device driver*/
@@ -147,23 +147,6 @@ int ROV_main(int argc, char *argv[])
     	if (ret > 0) {		/* If key pressed event occured */
     		read(0, &c_key, 1);
 
-    		if (c_key == 0x63) { // If "c" key pressed go into control gain setup
-			    printf("Press key\n");
-			    printf("1 for k_ax = %8.4f\n",(double)k_ax);
-			    printf("2 for k_ay = %8.4f\n",(double)k_ay);
-			    printf("3 for c_ax = %8.4f\n",(double)c_ax);
-			    printf("4 for c_ay = %8.4f\n",(double)c_ay);
-			    printf("5 for k_omz = %8.4f\n",(double)k_omz);
-	    		read(0, &c_key, 1);
-	    		switch (c_key){
-	    			case 0x31: //1
-	    				printf("function not implemented yet");
-					break;
-	    			default:
-	    				printf("function not implemented yet");
-					break;
-	    		}
-    		}
 
     		if (c_key == 0x67) { // If "g" key pressed go into key control loop
     			warnx("Start\n");
@@ -181,7 +164,7 @@ int ROV_main(int argc, char *argv[])
 
     				ret = poll(&fds, 1, 0);
     				fflush(stdin);
-    				    	if (ret > 0) {
+    				    	if (ret > 0) {		// If key pressed event occured
     				    		read(0,&c_key,1);
     				    		fflush(stdin);
 
@@ -248,58 +231,72 @@ int ROV_main(int argc, char *argv[])
 											thrust_set = 0.0f;
 											omz_set =  0.0f;
 										break;
+										// slow left
 										case 0x68:		// h
 											thrust_set = 0.0f;
 											omz_set = -0.4f;
 										break;
+										// hard left
 										case 0x67:		// g
 											thrust_set = 0.0f;
 											omz_set = -1.0f;
 										break;
+										// slow right
 										case 0x6B:		// k
 											thrust_set = 0.0f;
 											omz_set = 0.4f;
 										break;
+										// hard right
 										case 0x6C:		// l
 											thrust_set = 0.0f;
 											omz_set = 1.0f;
 										break;
+										// forward
 										case 0x75:		// u
 											thrust_set = 0.3f;
 											omz_set = 0.0f;
 										break;
+										// forward slow left
 										case 0x7A:		// z
 											thrust_set = 0.3f;
 											omz_set = -0.4f;
 										break;
+										// forward hard left
 										case 0x74:		// t
 											thrust_set = 0.3f;
 											omz_set = -1.0f;
 										break;
+										// forward slow right
 										case 0x69:		// i
 											thrust_set = 0.3f;
 											omz_set = 0.4f;
 										break;
+										// forward hard right
 										case 0x6F:		// o
 											thrust_set = 0.3f;
 											omz_set = 1.0f;
 										break;
+										// backward
 										case 0x6D:		// m
 											thrust_set = -0.3f;
 											omz_set = 0.0f;
 										break;
+										// backward slow left
 										case 0x6E:		// n
 											thrust_set = -0.3f;
 											omz_set = -0.4f;
 										break;
+										// backward hard left
 										case 0x62:		// b
 											thrust_set = -0.3f;
 											omz_set = -1.0f;
 										break;
+										// backward slow right
 										case 0x2C:		// ,
 											thrust_set = -0.3f;
 											omz_set = 0.4f;
 										break;
+										// backward hard right
 										case 0x2E:		// .
 											thrust_set = -0.3f;
 											omz_set = 1.0f;
@@ -320,29 +317,30 @@ int ROV_main(int argc, char *argv[])
 											k_omz = k_omz - 0.1f;
 											printf("k_omz = %8.4f",(double)k_omz);
 										break;
-										case 0x5A:     // Z
+										case 0x5A:     // Z pitch and roll stabilizer gain +.1
 											k_ax = k_ax + 0.1f;
 											k_ay = k_ax;
 											printf("k_ax/y = %8.4f",(double)k_ax);
 										break;
-										case 0x4E:     // N
+										case 0x4E:     // N pitch and roll stabilizer gain -.1
 											k_ax = k_ax - 0.1f;
 											k_ay = k_ax;
 											printf("k_ax/y = %8.4f",(double)k_ax);
 										break;
-										case 0x49:     // I
+										case 0x49:     // I pitch and roll stabilizer dominance +.1
 											c_ax = c_ax + 0.1f;
 											c_ay = c_ax;
 											printf("c_ax/y = %8.4f",(double)c_ax);
 										break;
-										case 0x3B:     // ;
+										case 0x3B:     // ; pitch and roll stabilizer dominance -.1
 											c_ax = c_ax - 0.1f;
 											c_ay = c_ax;
 											printf("c_ax/y = %8.4f",(double)c_ax);
 										break;
 										default:
+											printf("Unidentified key pressed: %c",c_key);
 											thrust_set = 0.0f;
-											omz_set = 0.0f;
+											omz_set =  0.0f;
 											actuators.control[0] = 0.0f;
 											actuators.control[1] = 0.0f;
 											actuators.control[2] = 0.0f;
@@ -366,23 +364,6 @@ int ROV_main(int argc, char *argv[])
 
 
     				    		/*
-									// gyro controlled
-    								case 0x78:         // x
-    		        				    // copy sensors raw data into local buffer
-    		        				    orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
-    		        				    // roll moment when y-axis is not horizontal
-    		        				    actuators.control[0] = - k_ay * raw.accelerometer_m_s2[1];
-    		        				    // pitch moment when x-axis is not horizontal
-    		        				    actuators.control[1] = k_ax * raw.accelerometer_m_s2[0];
-    		        				    // yaw moment when omz not omz_set and y and x axes are in horizontal plane
-    		        				    actuators.control[2] = k_omz * (omz_set - raw.gyro1_rad_s[2])
-    		        				    		/(1+abs(k_ax*raw.accelerometer_m_s2[0]))
-    		        				    		/(1+abs(k_ay*raw.accelerometer_m_s2[1]));
-    		        				    // forward thrust when nose is directed horizontally
-    		        				    actuators.control[3] = k_thrust
-    		        				    		/(1+abs(k_ax*raw.accelerometer_m_s2[0]))
-    		        				    		/(1+abs(k_ay*raw.accelerometer_m_s2[1]));
-    							    break;
 									// Emergency stop
     								case 0x70:         // p
     									actuators.control[0] = 0.0f;
@@ -391,19 +372,18 @@ int ROV_main(int argc, char *argv[])
     									actuators.control[3] = 0.0f;
     								break;*/
 
-    								}
-        				    	/* sanity check and publish actuator outputs */
-        				    	if (isfinite(actuators.control[0]) &&
-        				    		isfinite(actuators.control[1]) &&
-        				    		isfinite(actuators.control[2]) &&
-        				    		isfinite(actuators.control[3])) {
+								}
+							}
+							/* sanity check and publish actuator outputs */
+							if (isfinite(actuators.control[0]) &&
+								isfinite(actuators.control[1]) &&
+								isfinite(actuators.control[2]) &&
+								isfinite(actuators.control[3])) {
 
-
-			    			actuators.timestamp = hrt_absolute_time();
-			    			orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
-			    			orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
-        				    	}
-    				    	}
+								actuators.timestamp = hrt_absolute_time();
+								orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
+								orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
+							}
     				    	/* Plot to terminal */
     				    	if (hrt_absolute_time() - stime > 500000){
     				    		/* Plot pwm values  */
