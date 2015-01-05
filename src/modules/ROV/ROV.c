@@ -114,8 +114,8 @@ int ROV_main(int argc, char *argv[])
     		fds.events = POLLIN;
 
 			// controller tuning parameters
-			float k_ax = 0.2f; // gain for uprighting moment (pitch)
-			float k_ay = k_ax; // gain for roll compensator
+			float k_ax = 0.1f; // gain for uprighting moment (pitch)
+			float k_ay = 0.2f; // gain for roll compensator
 			float c_ax = 0.5f; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (x-axis)
 			float c_ay = c_ax; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (y-axis)
 			float k_omz = 1.0f; // yaw rate gain
@@ -333,13 +333,13 @@ int ROV_main(int argc, char *argv[])
 											k_ay = k_ay - 0.1f;
 											printf("roll stabilizer gain -.1 - k_ay = %8.4f",(double)k_ay);
 										break;
-										case 0x49:     // I pitch stabilizer dominance +.1
-											c_ax = c_ax + 0.1f;
-											printf("pitch stabilizer dominance +.1 - c_ax = %8.4f",(double)c_ax);
+										case 0x49:     // I pitch stabilizer dominance +.025
+											c_ax = c_ax + 0.025f;
+											printf("pitch stabilizer dominance +.025 - c_ax = %8.4f",(double)c_ax);
 										break;
-										case 0x3B:     // ; pitch stabilizer dominance -.1
-											c_ax = c_ax - 0.1f;
-											printf("pitch stabilizer dominance -.1 - c_ax = %8.4f",(double)c_ax);
+										case 0x3B:     // ; pitch stabilizer dominance -.025
+											c_ax = c_ax - 0.025f;
+											printf("pitch stabilizer dominance -.025 - c_ax = %8.4f",(double)c_ax);
 										break;
 										case 0x4F:     // O roll stabilizer dominance +.1
 											c_ay = c_ay + 0.1f;
