@@ -114,8 +114,8 @@ int ROV_main(int argc, char *argv[])
     		fds.events = POLLIN;
 
 			// controller tuning parameters
-			float k_ax = 0.2f; // gain for uprighting moment (pitch)
-			float k_ay = k_ax; // gain for roll compensator
+			float k_ax = 0.1f; // gain for uprighting moment (pitch)
+			float k_ay = 0.2f; // gain for roll compensator
 			float c_ax = 0.5f; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (x-axis)
 			float c_ay = c_ax; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (y-axis)
 			float k_omz = 1.0f; // yaw rate gain
@@ -303,39 +303,51 @@ int ROV_main(int argc, char *argv[])
 										break;
 										case 0x55:     // U thrust gain +.1
 											k_thrust = k_thrust + 0.1f;
-											printf("k_thrust = %8.4f",(double)k_thrust);
+											printf("thrust gain +.1 - k_thrust = %8.4f",(double)k_thrust);
 										break;
 										case 0x4D:     // M thrust gain -.1
 											k_thrust = k_thrust - 0.1f;
-											printf("k_thrust = %8.4f",(double)k_thrust);
+											printf("thrust gain -.1 - k_thrust = %8.4f",(double)k_thrust);
 										break;
 										case 0x4B:     // K yaw rate gain +.1
 											k_omz = k_omz + 0.1f;
-											printf("c_ax/y = %8.4f",(double)k_omz);
+											printf("yaw rate gain +.1 - k_omz = %8.4f",(double)k_omz);
 										break;
 										case 0x48:     // H yaw rate gain -.1
 											k_omz = k_omz - 0.1f;
-											printf("k_omz = %8.4f",(double)k_omz);
+											printf("yaw rate gain -.1 - k_omz = %8.4f",(double)k_omz);
 										break;
-										case 0x5A:     // Z pitch and roll stabilizer gain +.1
+										case 0x5A:     // Z pitch stabilizer gain +.1
 											k_ax = k_ax + 0.1f;
-											k_ay = k_ax;
-											printf("k_ax/y = %8.4f",(double)k_ax);
+											printf("pitch stabilizer gain +.1 - k_ax = %8.4f",(double)k_ax);
 										break;
-										case 0x4E:     // N pitch and roll stabilizer gain -.1
+										case 0x4E:     // N pitch stabilizer gain -.1
 											k_ax = k_ax - 0.1f;
-											k_ay = k_ax;
-											printf("k_ax/y = %8.4f",(double)k_ax);
+											printf("pitch stabilizer gain -.1 - k_ax = %8.4f",(double)k_ax);
 										break;
-										case 0x49:     // I pitch and roll stabilizer dominance +.1
-											c_ax = c_ax + 0.1f;
-											c_ay = c_ax;
-											printf("c_ax/y = %8.4f",(double)c_ax);
+										case 0x54:     // T roll stabilizer gain +.1
+											k_ay = k_ay + 0.1f;
+											printf("roll stabilizer gain +.1 - k_ay = %8.4f",(double)k_ay);
 										break;
-										case 0x3B:     // ; pitch and roll stabilizer dominance -.1
-											c_ax = c_ax - 0.1f;
-											c_ay = c_ax;
-											printf("c_ax/y = %8.4f",(double)c_ax);
+										case 0x42:     // B roll stabilizer gain -.1
+											k_ay = k_ay - 0.1f;
+											printf("roll stabilizer gain -.1 - k_ay = %8.4f",(double)k_ay);
+										break;
+										case 0x49:     // I pitch stabilizer dominance +.025
+											c_ax = c_ax + 0.025f;
+											printf("pitch stabilizer dominance +.025 - c_ax = %8.4f",(double)c_ax);
+										break;
+										case 0x3B:     // ; pitch stabilizer dominance -.025
+											c_ax = c_ax - 0.025f;
+											printf("pitch stabilizer dominance -.025 - c_ax = %8.4f",(double)c_ax);
+										break;
+										case 0x4F:     // O roll stabilizer dominance +.1
+											c_ay = c_ay + 0.1f;
+											printf("roll stabilizer dominance +.1 - c_ay = %8.4f",(double)c_ay);
+										break;
+										case 0x3A:     // : roll stabilizer dominance -.1
+											c_ay = c_ay - 0.1f;
+											printf("roll stabilizer dominance -.1 - c_ay = %8.4f",(double)c_ay);
 										break;
 										default:
 											printf("Unidentified key pressed: %c",c_key);
@@ -351,7 +363,7 @@ int ROV_main(int argc, char *argv[])
 									// copy sensors raw data into local buffer
 									orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
 									// roll moment when y-axis is not horizontal
-									actuators.control[0] = - k_ay * raw.accelerometer_m_s2[1];
+									actuators.control[0] = k_ay * raw.accelerometer_m_s2[1];
 									// pitch moment when x-axis is not horizontal
 									actuators.control[1] = k_ax * raw.accelerometer_m_s2[0];
 									// yaw moment when omz not omz_set and y and x axes are in horizontal plane
