@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 /*
  * rtwtypes.h
  *
@@ -159,7 +159,7 @@ typedef char_T byte_T;
 #endif
 #endif
 /* End of code generation (rtwtypes.h) */
-=======
+
 /*
  * rtwtypes.h
  *
@@ -320,4 +320,4 @@ typedef char_T byte_T;
 #endif
 #endif
 /* End of code generation (rtwtypes.h) */
->>>>>>> d54b46355ce0f8c128a5e7fce94564c7cb338987
+
