@@ -64,6 +64,7 @@
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/parameter_update.h>
+#include <uORB/topics/battery_status.h>
 #include <systemlib/param/param.h>
 #include <systemlib/err.h>
 #include <systemlib/perf_counter.h>
@@ -95,11 +96,13 @@ private:
 
 	/* handlers for subscriptions */
 	int		_v_att_sub;				/**< vehicle attitude subscription */
+	int     _bat_stat_sub;			   /**< battery status subscription */
 
 	//handlers for publishers
 
 	//*******************data containers***********************************************************
 	struct vehicle_attitude_s			_v_att;				/**< vehicle attitude */
+	struct battery_status_s			    _bat_stat;			/**< battery status */
 
 
 	//*****************Member functions***********************************************************************
@@ -161,6 +164,7 @@ UuvAttitudeControl::task_main()
  	 * do subscriptions
 	 */
 	_v_att_sub = orb_subscribe(ORB_ID(vehicle_attitude));
+	_bat_stat_sub = orb_subscribe(ORB_ID(battery_status));
 
 	/* initialize parameters cache */
 
@@ -190,6 +194,7 @@ UuvAttitudeControl::task_main()
 
 		/* copy attitude topic which is produced by attitude estimator */
 		orb_copy(ORB_ID(vehicle_attitude), _v_att_sub, &_v_att);
+		orb_copy(ORB_ID(battery_status), _bat_stat_sub, &_bat_stat);
 
 		/* Print ekf values */
 		hrt_abstime stime;
@@ -206,6 +211,8 @@ UuvAttitudeControl::task_main()
 		    				    			(double)_v_att.rollacc,
 		    				    			(double)_v_att.pitchacc,
 		    				    			(double)_v_att.yawacc);
+		    				    	printf("BAT:\t%8.4f\n \n",
+		    				    			(double)_bat_stat.voltage_filtered_v);
 
 		    				    	stime = hrt_absolute_time();
 		}
