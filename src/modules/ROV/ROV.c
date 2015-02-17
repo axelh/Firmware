@@ -59,6 +59,7 @@
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/actuator_controls.h>
 #include <uORB/topics/actuator_armed.h>
+#include <uORB/topics/battery_status.h>
 #include <geo/geo.h>
 #include <systemlib/perf_counter.h>
 #include <systemlib/systemlib.h>
