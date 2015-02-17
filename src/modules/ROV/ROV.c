@@ -435,18 +435,18 @@ int ROV_main(int argc, char *argv[])
 //    				    	printf("Temp:\t%8.4f\n",
 //    				    			(double)raw.baro_temp_celcius);
 //
-//    				    	printf("Ang:\t%8.4f\t%8.4f\t%8.4f\n",
-//    				    			(double)_v_att.roll,
-//    				    			(double)_v_att.pitch,
-//    				    			(double)_v_att.yaw);
-//    				    	printf("Vel:\t%8.4f\t%8.4f\t%8.4f\n",
-//    				    			(double)_v_att.rollspeed,
-//    				    			(double)_v_att.pitchspeed,
-//    				    			(double)_v_att.yawspeed);
-//    				    	printf("Acc:\t%8.4f\t%8.4f\t%8.4f\n \n",
-//    				    			(double)_v_att.rollacc,
-//    				    			(double)_v_att.pitchacc,
-//    				    			(double)_v_att.yawacc);
+    				    	printf("Ang:\t%8.4f\t%8.4f\t%8.4f\n",
+    				    			(double)_v_att.roll,
+    				    			(double)_v_att.pitch,
+    				    			(double)_v_att.yaw);
+    				    	printf("Vel:\t%8.4f\t%8.4f\t%8.4f\n",
+    				    			(double)_v_att.rollspeed,
+    				    			(double)_v_att.pitchspeed,
+    				    			(double)_v_att.yawspeed);
+    				    	printf("Acc:\t%8.4f\t%8.4f\t%8.4f\n \n",
+    				    			(double)_v_att.rollacc,
+    				    			(double)_v_att.pitchacc,
+    				    			(double)_v_att.yawacc);
 
     				    	printf("ADC 10:\t%8.4f\n",
    				    			(double)raw.adc_voltage_v[6]);
