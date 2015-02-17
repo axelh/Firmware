@@ -67,16 +67,17 @@ MODULES		+= systemcmds/ver
 #
 # General system control
 #
-#MODULES		+= modules/commander
+MODULES		+= modules/commander
 #MODULES		+= modules/navigator
-#MODULES		+= modules/mavlink
+MODULES		+= modules/mavlink
 #MODULES		+= modules/gpio_led
 #MODULES		+= modules/uavcan
 
 #
 # Estimation modules (EKF/ SO3 / other filters)
 #
-#MODULES		+= modules/attitude_estimator_ekf
+MODULES		+= modules/attitude_estimator_ekf
+MODULES		+= modules/attitude_estimator_so3
 #MODULES		+= modules/ekf_att_pos_estimator
 #MODULES		+= modules/position_estimator_inav
 
@@ -90,7 +91,7 @@ MODULES		+= systemcmds/ver
 #MODULES		+= modules/mc_att_control
 #MODULES		+= modules/mc_pos_control
 #MODULES 	+= modules/vtol_att_control
-
+MODULES 	+= modules/uuv_att_control
 
 #
 # Logging

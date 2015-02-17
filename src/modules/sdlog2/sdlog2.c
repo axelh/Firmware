@@ -1302,6 +1302,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 				log_msg.body.log_SENS.baro_temp = buf.sensor.baro_temp_celcius;
 				log_msg.body.log_SENS.diff_pres = buf.sensor.differential_pressure_pa;
 				log_msg.body.log_SENS.diff_pres_filtered = buf.sensor.differential_pressure_filtered_pa;
+				log_msg.body.log_SENS.adc_pressure = buf.sensor.adc_voltage_v[6];
 				LOGBUFFER_WRITE_AND_COUNT(SENS);
 			}
 
