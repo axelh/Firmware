@@ -92,7 +92,7 @@ PARAM_DEFINE_FLOAT(EKF_ATT_V4_R1, 10000.0f);
  *
  * @group attitude_ekf
  */
-PARAM_DEFINE_FLOAT(EKF_ATT_V4_R2, 100.0f);
+PARAM_DEFINE_FLOAT(EKF_ATT_V4_R2, 10000000.0f);
 
 /* magnetic declination, in degrees */
 PARAM_DEFINE_FLOAT(ATT_MAG_DECL, 0.0f);

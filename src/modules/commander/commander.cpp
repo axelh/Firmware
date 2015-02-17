@@ -82,7 +82,7 @@
 #include <uORB/topics/mission.h>
 #include <uORB/topics/mission_result.h>
 #include <uORB/topics/telemetry_status.h>
-#include <uORB/topics/vtol_vehicle_status.h>
+//#include <uORB/topics/vtol_vehicle_status.h>
 
 #include <drivers/drv_led.h>
 #include <drivers/drv_hrt.h>
@@ -1019,11 +1019,11 @@ int commander_thread_main(int argc, char *argv[])
 	struct actuator_controls_s actuator_controls;
 	memset(&actuator_controls, 0, sizeof(actuator_controls));
 
-	/* Subscribe to vtol vehicle status topic */
-	int vtol_vehicle_status_sub = orb_subscribe(ORB_ID(vtol_vehicle_status));
-	struct vtol_vehicle_status_s vtol_status;
-	memset(&vtol_status, 0, sizeof(vtol_status));
-	vtol_status.vtol_in_rw_mode = true;		//default for vtol is rotary wing
+//	/* Subscribe to vtol vehicle status topic */
+//	int vtol_vehicle_status_sub = orb_subscribe(ORB_ID(vtol_vehicle_status));
+//	struct vtol_vehicle_status_s vtol_status;
+//	memset(&vtol_status, 0, sizeof(vtol_status));
+//	vtol_status.vtol_in_rw_mode = true;		//default for vtol is rotary wing
 
 
 	control_status_leds(&status, &armed, true);
@@ -1082,9 +1082,10 @@ int commander_thread_main(int argc, char *argv[])
 				    status.system_type == VEHICLE_TYPE_TRICOPTER ||
 				    status.system_type == VEHICLE_TYPE_QUADROTOR ||
 				    status.system_type == VEHICLE_TYPE_HEXAROTOR ||
-				    status.system_type == VEHICLE_TYPE_OCTOROTOR ||
-				    (status.system_type == VEHICLE_TYPE_VTOL_DUOROTOR && vtol_status.vtol_in_rw_mode) ||
-				    (status.system_type == VEHICLE_TYPE_VTOL_QUADROTOR && vtol_status.vtol_in_rw_mode)) {
+				    status.system_type == VEHICLE_TYPE_OCTOROTOR //||
+//				    (status.system_type == VEHICLE_TYPE_VTOL_DUOROTOR && vtol_status.vtol_in_rw_mode) ||
+//				    (status.system_type == VEHICLE_TYPE_VTOL_QUADROTOR && vtol_status.vtol_in_rw_mode)
+				    ) {
 
 					status.is_rotary_wing = true;
 
@@ -1248,17 +1249,17 @@ int commander_thread_main(int argc, char *argv[])
 		}
 
 		/* update vtol vehicle status*/
-		orb_check(vtol_vehicle_status_sub, &updated);
+		//orb_check(vtol_vehicle_status_sub, &updated);
 
-		if (updated) {
-			/* vtol status changed */
-			orb_copy(ORB_ID(vtol_vehicle_status), vtol_vehicle_status_sub, &vtol_status);
-
-			/* Make sure that this is only adjusted if vehicle realy is of type vtol*/
-			if (status.system_type == VEHICLE_TYPE_VTOL_DUOROTOR || VEHICLE_TYPE_VTOL_QUADROTOR) {
-				status.is_rotary_wing = vtol_status.vtol_in_rw_mode;
-			}
-		}
+//		if (updated) {
+//			/* vtol status changed */
+//			orb_copy(ORB_ID(vtol_vehicle_status), vtol_vehicle_status_sub, &vtol_status);
+//
+//			/* Make sure that this is only adjusted if vehicle realy is of type vtol*/
+//			if (status.system_type == VEHICLE_TYPE_VTOL_DUOROTOR || VEHICLE_TYPE_VTOL_QUADROTOR) {
+//				status.is_rotary_wing = vtol_status.vtol_in_rw_mode;
+//			}
+//		}
 
 		/* update global position estimate */
 		orb_check(global_position_sub, &updated);

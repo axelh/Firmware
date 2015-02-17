@@ -59,6 +59,7 @@
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/actuator_controls.h>
 #include <uORB/topics/actuator_armed.h>
+#include <uORB/topics/battery_status.h>
 #include <geo/geo.h>
 #include <systemlib/perf_counter.h>
 #include <systemlib/systemlib.h>
@@ -80,6 +81,8 @@
  */
 __EXPORT int ROV_main(int argc, char *argv[]);
 
+
+
 int ROV_main(int argc, char *argv[])
 {
 	/* Initialize actuator  struct and set it to zero*/
@@ -95,8 +98,12 @@ int ROV_main(int argc, char *argv[])
     orb_advert_t armed_pub = orb_advertise(ORB_ID(actuator_armed), &armed);
     orb_advert_t actuator_pub_fd = orb_advertise(ORB_ID(actuator_controls_0), &actuators);
 
-    /* subscribe to sensor_combined topic */
+
+    /* handlers for sensor and attitude (EKF) subscriptions */
+	int _v_att_sub = orb_subscribe(ORB_ID(vehicle_attitude));
     int sensor_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
+    int _bat_stat_sub = orb_subscribe(ORB_ID(battery_status));
+
     orb_set_interval(sensor_sub_fd, 1000);
 
     /* Initialize aux variables and abs time variable */
@@ -105,8 +112,13 @@ int ROV_main(int argc, char *argv[])
     char c_key;
     float rcvalue = 0.0f;
     hrt_abstime stime;
-	/* Initialize sensor struct */
-	struct sensor_combined_s raw;
+
+
+	//*******************data containers***********************************************************
+	struct vehicle_attitude_s			_v_att;				/**< vehicle attitude */
+	struct sensor_combined_s 			raw;				/**< sensor values */
+	struct battery_status_s			    _bat_stat;			/**< battery status */
+
 
     /* Key pressed event */
     struct pollfd fds;
@@ -396,6 +408,15 @@ int ROV_main(int argc, char *argv[])
 								orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
 								orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
 							}
+
+							/* copy attitude topic which is produced by attitude estimator */
+							orb_copy(ORB_ID(vehicle_attitude), _v_att_sub, &_v_att);
+        				    /* copy sensors raw data into local buffer */
+        				    orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
+        				    /* copy battery status into local buffer */
+        				    orb_copy(ORB_ID(battery_status), _bat_stat_sub, &_bat_stat);
+
+
     				    	/* Plot to terminal */
     				    	if (hrt_absolute_time() - stime > 500000){
     				    		/* Plot pwm values  */
@@ -407,31 +428,31 @@ int ROV_main(int argc, char *argv[])
     				    			}
     				    		}
 
-        				    /* copy sensors raw data into local buffer */
-        				    orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
+    				    	/* Print sensor & EKF values */
 
-    				    	/* Print sensor values */
-
-    				    	printf("Snrs:\n Pres:\t%8.4f\n",
-    				    			(double)raw.baro_pres_mbar);
-
-    				    	printf("Temp:\t%8.4f\n",
-    				    			(double)raw.baro_temp_celcius);
-
-        				    printf("Mag:\t%8.4f\t%8.4f\t%8.4f\n",
-        				    		(double)raw.magnetometer_ga[0],
-        				    		(double)raw.magnetometer_ga[1],
-        				    		(double)raw.magnetometer_ga[2]);
-
-    				    	printf("Gyro:\t%8.4f\t%8.4f\t%8.4f\n",
-    				    			(double)raw.gyro1_rad_s[0],
-    				    			(double)raw.gyro1_rad_s[1],
-    				    			(double)raw.gyro1_rad_s[2]);
-
+//    				    	printf("Snrs:\n Pres:\t%8.4f\n",
+//    				    			(double)raw.baro_pres_mbar);
+//
+//    				    	printf("Temp:\t%8.4f\n",
+//    				    			(double)raw.baro_temp_celcius);
+//
+    				    	printf("Ang:\t%8.4f\t%8.4f\t%8.4f\n",
+    				    			(double)_v_att.roll,
+    				    			(double)_v_att.pitch,
+    				    			(double)_v_att.yaw);
+    				    	printf("Vel:\t%8.4f\t%8.4f\t%8.4f\n",
+    				    			(double)_v_att.rollspeed,
+    				    			(double)_v_att.pitchspeed,
+    				    			(double)_v_att.yawspeed);
     				    	printf("Acc:\t%8.4f\t%8.4f\t%8.4f\n \n",
-    				    			(double)raw.accelerometer_m_s2[0],
-    				    			(double)raw.accelerometer_m_s2[1],
-    				    			(double)raw.accelerometer_m_s2[2]);
+    				    			(double)_v_att.rollacc,
+    				    			(double)_v_att.pitchacc,
+    				    			(double)_v_att.yawacc);
+
+    				    	printf("ADC 10:\t%8.4f\n",
+   				    			(double)raw.adc_voltage_v[6]);
+	    				    printf("BAT:\t%8.4f\n \n",
+	    				    	(double)_bat_stat.voltage_filtered_v);
 
     	    				stime = hrt_absolute_time();
     				    	}
