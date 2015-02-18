@@ -126,14 +126,25 @@ int ROV_main(int argc, char *argv[])
     		fds.events = POLLIN;
 
 			// controller tuning parameters
-			float k_ax = 0.1f; // gain for uprighting moment (pitch)
-			float k_ay = 0.2f; // gain for roll compensator
-			float c_ax = 0.5f; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (x-axis)
-			float c_ay = c_ax; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (y-axis)
-			float k_omz = 1.0f; // yaw rate gain
-			float omz_set = 0.0f; // setpoint yaw rate
-			float k_thrust = 1.0f; // forward thrust gain
+    		float dgain = 0.05;
+			float pitch_gain = 1.0f; // gain for uprighting moment (pitch)
+			float roll_gain = 2.0f; // gain for roll compensator
+			float pitch_dominance = 5.0f; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (x-axis)
+			float roll_dominance = pitch_dominance; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (y-axis)
+			float yawrate_gain = 1.0f; // yaw rate gain
+			float yawrate_set = 0.0f; // setpoint yaw rate
+			float yawrate_max = 2.0f; // maximum yaw rate for autopilot
 			float thrust_set = 0.0f; // thrust setpoint
+			float thrust_max = 0.3f; // thrust setpoint
+			float pitch_setpoint = 0.0f; // pitch setpoint
+			float actuator_limit = 0.4f; // actuator limit here instead of in mixer for adaptive change
+			float depth_setpoint = 0.4f;
+			float autodepth_gain = 5.0f;
+			// status parameters
+			bool autopilot = false;
+			bool oldautopilot = false;
+			bool autodepth = false;
+			bool manual = true;
 
     /* Open PWM device driver*/
     int fd = open(&PWM_OUTPUT_DEVICE_PATH, 0);
@@ -168,9 +179,10 @@ int ROV_main(int argc, char *argv[])
     			/* Keyboard control. Can be aborted with "c" key */
     			while (true) {
 
-			    	for (unsigned k = 0; k < 4; k++) {
-			    		actuators.control[k] = 0.0f;
-			    	}
+    				// set all actuators to zero each run, only if button is continuously pressed, an action is executed
+//			    	for (unsigned k = 0; k < 4; k++) {
+//			    		actuators.control[k] = 0.0f;
+//			    	}
 
 			    	usleep(20000);
 
@@ -181,8 +193,8 @@ int ROV_main(int argc, char *argv[])
     				    		fflush(stdin);
 
     				    		switch (c_key){
-									//User abort
 									case 0x63:         //c
+										//User abort
 										warnx("User abort\n");
 										//Stop servos
 										for (i=0; i<4; i++){
@@ -196,218 +208,289 @@ int ROV_main(int argc, char *argv[])
 
 										exit(0); //return
 									break;
-									// Emergency stop
 									case 0x20:         // space
+										// Emergency stop
 										actuators.control[0] = 0.0f;
 										actuators.control[1] = 0.0f;
 										actuators.control[2] = 0.0f;
 										actuators.control[3] = 0.0f;
+										autopilot = false;
 									break;
 
-				    		    	// roll
-    				    			case 0x71:		// q
-    				    				actuators.control[0] = -1.0f;
-    				    		    break;
-    				    			case 0x65:		// e
-    				    				actuators.control[0] = +1.0f;
-    				    		    break;
-    								// pitch
-    								case 0x77:		// w
-    									actuators.control[1] = -1.0f;
-    								break;
-    								case 0x73:		// s
-    									actuators.control[1] = +1.0f;
-    								break;
-									// yaw
-    								case 0x61:		// a
-    									actuators.control[2] = -1.0f;
-    								break;
-    								case 0x64:		// d
-    									actuators.control[2] = +1.0f;
-    								break;
-									// Acc
-    								case 0x72:         // r
-    									actuators.control[3] = +1.0f;
+									// MANUAL MODE
+					    			case 0x37:		// 7
+					    				// roll left
+										manual=true;actuators.control[0] = 0.0f;actuators.control[1] = 0.0f;actuators.control[2] = 0.0f;actuators.control[3] = 0.0f;
+					    				actuators.control[0] = -1.0f;
+					    		    break;
+					    			case 0x39:		// 9
+					    				// roll right
+					    				manual=true;actuators.control[0] = 0.0f;actuators.control[1] = 0.0f;actuators.control[2] = 0.0f;actuators.control[3] = 0.0f;
+					    				actuators.control[0] = +1.0f;
+					    		    break;
+									case 0x38:		// 8
+										// pitch up
+										manual=true;actuators.control[0] = 0.0f;actuators.control[1] = 0.0f;actuators.control[2] = 0.0f;actuators.control[3] = 0.0f;
+										actuators.control[1] = -1.0f;
 									break;
-    								// Rev. Acc
-    							    case 0x66:         // f
-    									actuators.control[3] = -1.0f;
-    								break;
+									case 0x35:		// 5
+										// pitch down
+										manual=true;actuators.control[0] = 0.0f;actuators.control[1] = 0.0f;actuators.control[2] = 0.0f;actuators.control[3] = 0.0f;
+										actuators.control[1] = +1.0f;
+									break;
+									case 0x34:		// 4
+										// turn left
+										manual=true;actuators.control[0] = 0.0f;actuators.control[1] = 0.0f;actuators.control[2] = 0.0f;actuators.control[3] = 0.0f;
+										actuators.control[2] = -1.0f;
+									break;
+									case 0x36:		// 6
+										// turn right
+										manual=true;actuators.control[0] = 0.0f;actuators.control[1] = 0.0f;actuators.control[2] = 0.0f;actuators.control[3] = 0.0f;
+										actuators.control[2] = +1.0f;
+									break;
+									case 0x2B:         // +
+										// Acc
+										manual=true;actuators.control[0] = 0.0f;actuators.control[1] = 0.0f;actuators.control[2] = 0.0f;actuators.control[3] = 0.0f;
+										actuators.control[3] = +1.0f;
+									break;
+								    case 0x30:         // 0
+										// Rev. Acc
+								    	manual=true;actuators.control[0] = 0.0f;actuators.control[1] = 0.0f;actuators.control[2] = 0.0f;actuators.control[3] = 0.0f;
+										actuators.control[3] = -1.0f;
+									break;
+//									case 0x77:		// w
+//									case 0x73:		// s
+//									case 0x64:		// d
+//					    			case 0x71:		// q
+//					    			case 0x65:		// e
+//									case 0x72:      // r
+//								    case 0x66:      // f
 
-									// gyro & acc stabilized mode
-    								//  keyboard control centered around j - neutral h,g left, k,l right, one/two row up forward, one row down backward
-    							    default:
-    							    	switch (c_key){
-										// neutral position stabilizing
-										case 0x6A:		// j
-											thrust_set = 0.0f;
-											omz_set =  0.0f;
-										break;
+					    			case 0x71:		// q
+					    				oldautopilot = false;
+									break;
+					    			case 0x51:		// Q
+					    				oldautopilot = true;
+									break;
+
+									// DEPTH CONTROL
+								    case 0x61:		// a
+										// autodepth controller
+										autodepth = true;
+										printf("autodepth activated, setpoint = %8.4f V",(double)depth_setpoint);
+									break;
+								    case 0x79:		// y
+										// autodepth controller off, pitch controller on
+										autodepth = false;
+										printf("autodepth deactivated, pitch control activated, setpoint = %8.4f",(double)pitch_setpoint);
+									break;
+									case 0x3C:     // >
+										// depth setpoint -.1 or pitch setpoint +.1
+										if (autodepth) {
+											depth_setpoint = depth_setpoint - 0.1f;
+											printf("depth_setpoint -.1 = %8.4f",(double)depth_setpoint);
+										} else {
+											pitch_setpoint = pitch_setpoint + 0.1f;
+											printf("pitch_setpoint +.1 = %8.4f",(double)pitch_setpoint);
+										}
+									break;
+									case 0x3E:     // <
+										// depth setpoint +.1 or pitch setpoint -.1
+										if (autodepth) {
+											depth_setpoint = depth_setpoint + 0.1f;
+											printf("depth_setpoint +.1 = %8.4f",(double)depth_setpoint);
+										} else {
+											pitch_setpoint = pitch_setpoint - 0.1f;
+											printf("pitch_setpoint -.1 = %8.4f",(double)pitch_setpoint);
+										}
+									break;
+
+								    case 0x2D:		// -
+										// gyro & acc stabilized mode
+										autopilot = true;
+									break;
+									//  keyboard control centered around j - neutral h,g left, k,l right, one/two row up forward, one row down backward
+									// neutral position stabilizing
+									case 0x6A:		// j
+										thrust_set = 0.0f;
+										yawrate_set =  0.0f*yawrate_max;
+									break;
+									case 0x68:		// h
 										// slow left
-										case 0x68:		// h
-											thrust_set = 0.0f;
-											omz_set = -0.4f;
-										break;
+										thrust_set = 0.0f;
+										yawrate_set = -0.4f*yawrate_max;
+									break;
+									case 0x67:		// g
 										// hard left
-										case 0x67:		// g
-											thrust_set = 0.0f;
-											omz_set = -1.0f;
-										break;
+										thrust_set = 0.0f;
+										yawrate_set = -1.0f*yawrate_max;
+									break;
+									case 0x6B:		// k
 										// slow right
-										case 0x6B:		// k
-											thrust_set = 0.0f;
-											omz_set = 0.4f;
-										break;
+										thrust_set = 0.0f;
+										yawrate_set = 0.4f*yawrate_max;
+									break;
+									case 0x6C:		// l
 										// hard right
-										case 0x6C:		// l
-											thrust_set = 0.0f;
-											omz_set = 1.0f;
-										break;
+										thrust_set = 0.0f;
+										yawrate_set = 1.0f*yawrate_max;
+									break;
+									case 0x75:		// u
 										// forward
-										case 0x75:		// u
-											thrust_set = 0.3f;
-											omz_set = 0.0f;
-										break;
+										thrust_set = thrust_max;
+										yawrate_set = 0.0f*yawrate_max;
+									break;
+									case 0x7A:		// z
 										// forward slow left
-										case 0x7A:		// z
-											thrust_set = 0.3f;
-											omz_set = -0.4f;
-										break;
+										thrust_set = thrust_max;
+										yawrate_set = -0.4f*yawrate_max;
+									break;
+									case 0x74:		// t
 										// forward hard left
-										case 0x74:		// t
-											thrust_set = 0.3f;
-											omz_set = -1.0f;
-										break;
+										thrust_set = thrust_max;
+										yawrate_set = -1.0f*yawrate_max;
+									break;
+									case 0x69:		// i
 										// forward slow right
-										case 0x69:		// i
-											thrust_set = 0.3f;
-											omz_set = 0.4f;
-										break;
+										thrust_set = thrust_max;
+										yawrate_set = 0.4f*yawrate_max;
+									break;
+									case 0x6F:		// o
 										// forward hard right
-										case 0x6F:		// o
-											thrust_set = 0.3f;
-											omz_set = 1.0f;
-										break;
+										thrust_set = thrust_max;
+										yawrate_set = 1.0f*yawrate_max;
+									break;
+									case 0x6D:		// m
 										// backward
-										case 0x6D:		// m
-											thrust_set = -0.3f;
-											omz_set = 0.0f;
-										break;
+										thrust_set = -thrust_max;
+										yawrate_set = 0.0f*yawrate_max;
+									break;
+									case 0x6E:		// n
 										// backward slow left
-										case 0x6E:		// n
-											thrust_set = -0.3f;
-											omz_set = -0.4f;
-										break;
+										thrust_set = -thrust_max;
+										yawrate_set = -0.4f*yawrate_max;
+									break;
+									case 0x62:		// b
 										// backward hard left
-										case 0x62:		// b
-											thrust_set = -0.3f;
-											omz_set = -1.0f;
-										break;
+										thrust_set = -thrust_max;
+										yawrate_set = -1.0f*yawrate_max;
+									break;
+									case 0x2C:		// ,
 										// backward slow right
-										case 0x2C:		// ,
-											thrust_set = -0.3f;
-											omz_set = 0.4f;
-										break;
+										thrust_set = -thrust_max;
+										yawrate_set = 0.4f*yawrate_max;
+									break;
+									case 0x2E:		// .
 										// backward hard right
-										case 0x2E:		// .
-											thrust_set = -0.3f;
-											omz_set = 1.0f;
-										break;
-										case 0x55:     // U thrust gain +.1
-											k_thrust = k_thrust + 0.1f;
-											printf("thrust gain +.1 - k_thrust = %8.4f",(double)k_thrust);
-										break;
-										case 0x4D:     // M thrust gain -.1
-											k_thrust = k_thrust - 0.1f;
-											printf("thrust gain -.1 - k_thrust = %8.4f",(double)k_thrust);
-										break;
-										case 0x4B:     // K yaw rate gain +.1
-											k_omz = k_omz + 0.1f;
-											printf("yaw rate gain +.1 - k_omz = %8.4f",(double)k_omz);
-										break;
-										case 0x48:     // H yaw rate gain -.1
-											k_omz = k_omz - 0.1f;
-											printf("yaw rate gain -.1 - k_omz = %8.4f",(double)k_omz);
-										break;
-										case 0x5A:     // Z pitch stabilizer gain +.1
-											k_ax = k_ax + 0.1f;
-											printf("pitch stabilizer gain +.1 - k_ax = %8.4f",(double)k_ax);
-										break;
-										case 0x4E:     // N pitch stabilizer gain -.1
-											k_ax = k_ax - 0.1f;
-											printf("pitch stabilizer gain -.1 - k_ax = %8.4f",(double)k_ax);
-										break;
-										case 0x54:     // T roll stabilizer gain +.1
-											k_ay = k_ay + 0.1f;
-											printf("roll stabilizer gain +.1 - k_ay = %8.4f",(double)k_ay);
-										break;
-										case 0x42:     // B roll stabilizer gain -.1
-											k_ay = k_ay - 0.1f;
-											printf("roll stabilizer gain -.1 - k_ay = %8.4f",(double)k_ay);
-										break;
-										case 0x49:     // I pitch stabilizer dominance +.025
-											c_ax = c_ax + 0.025f;
-											printf("pitch stabilizer dominance +.025 - c_ax = %8.4f",(double)c_ax);
-										break;
-										case 0x3B:     // ; pitch stabilizer dominance -.025
-											c_ax = c_ax - 0.025f;
-											printf("pitch stabilizer dominance -.025 - c_ax = %8.4f",(double)c_ax);
-										break;
-										case 0x4F:     // O roll stabilizer dominance +.1
-											c_ay = c_ay + 0.1f;
-											printf("roll stabilizer dominance +.1 - c_ay = %8.4f",(double)c_ay);
-										break;
-										case 0x3A:     // : roll stabilizer dominance -.1
-											c_ay = c_ay - 0.1f;
-											printf("roll stabilizer dominance -.1 - c_ay = %8.4f",(double)c_ay);
-										break;
-										default:
-											printf("Unidentified key pressed: %c",c_key);
-											thrust_set = 0.0f;
-											omz_set =  0.0f;
-											actuators.control[0] = 0.0f;
-											actuators.control[1] = 0.0f;
-											actuators.control[2] = 0.0f;
-											actuators.control[3] = 0.0f;
-										break;
-    							    }
-									// gyro controlled
-									// copy sensors raw data into local buffer
-									orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
-									// roll moment when y-axis is not horizontal
-									actuators.control[0] = k_ay * raw.accelerometer_m_s2[1];
-									// pitch moment when x-axis is not horizontal
-									actuators.control[1] = k_ax * raw.accelerometer_m_s2[0];
-									// yaw moment when omz not omz_set and y and x axes are in horizontal plane
-									actuators.control[2] = k_omz * (omz_set - raw.gyro1_rad_s[2])
-											/(1+abs(c_ax*raw.accelerometer_m_s2[0])+abs(c_ay*raw.accelerometer_m_s2[1]));
-									// forward thrust when nose is directed horizontally
-									actuators.control[3] = k_thrust * thrust_set
-											/(1+abs(c_ax*raw.accelerometer_m_s2[0])+abs(c_ay*raw.accelerometer_m_s2[1]));
-	    				    		break; // default
+										thrust_set = -thrust_max;
+										yawrate_set = 1.0f*yawrate_max;
+									break;
 
 
-    				    		/*
-									// Emergency stop
-    								case 0x70:         // p
-    									actuators.control[0] = 0.0f;
-    									actuators.control[1] = 0.0f;
-    									actuators.control[2] = 0.0f;
-    									actuators.control[3] = 0.0f;
-    								break;*/
+									// SET TUNING PARAMETERS //
+									case 0x44:		// D
+										// differential gain *1.1
+										dgain = dgain * 1.1f;
+										printf("dgain * 1.1f; = %8.4f",(double)dgain);
+									break;
+									case 0x64:		// d
+										// differential gain /1.1
+										dgain = dgain / 1.1f;
+										printf("dgain / 1.1f; = %8.4f",(double)dgain);
+									break;
+									case 0x41:		// A
+										// auto depth gain +.1
+										autodepth_gain = autodepth_gain * 1.1f;
+										printf("autodepth_gain * 1.1f; = %8.4f",(double)autodepth_gain);
+									break;
+									case 0x59:		// Y
+										// auto depth gain -.1
+										autodepth_gain = autodepth_gain / 1.1f;
+										printf("autodepth_gain / 1.1f; = %8.4f",(double)autodepth_gain);
+									break;
+									case 0x55:     // U
+										// thrust gain +.1
+										thrust_max = thrust_max + 0.1f;
+										printf("thrust gain +.1 - thrust_max = %8.4f",(double)thrust_max);
+									break;
+									case 0x4D:     // M
+										// thrust gain -.1
+										thrust_max = thrust_max - 0.1f;
+										printf("thrust gain -.1 - thrust_max = %8.4f",(double)thrust_max);
+									break;
+									case 0x4C:     // L
+										// yaw rate max +.1
+										yawrate_max = yawrate_max + 0.1f;
+										printf("yaw rate max +.1 - yawrate_max = %8.4f",(double)yawrate_max);
+									break;
+									case 0x47:     // G
+										// yaw rate max -.1
+										yawrate_max = yawrate_max - 0.1f;
+										printf("yaw rate max -.1 - yawrate_max = %8.4f",(double)yawrate_max);
+									break;
+									case 0x4B:     // K
+										// yaw rate gain +.1
+										yawrate_gain = yawrate_gain + 0.1f;
+										printf("yaw rate gain +.1 - yawrate_gain = %8.4f",(double)yawrate_gain);
+									break;
+									case 0x48:     // H
+										// yaw rate gain -.1
+										yawrate_gain = yawrate_gain - 0.1f;
+										printf("yaw rate gain -.1 - yawrate_gain = %8.4f",(double)yawrate_gain);
+									break;
+									case 0x5A:     // Z
+										// pitch stabilizer gain +.1
+										pitch_gain = pitch_gain + 0.1f;
+										printf("pitch stabilizer gain +.1 - pitch_gain = %8.4f",(double)pitch_gain);
+									break;
+									case 0x4E:     // N
+										// pitch stabilizer gain -.1
+										pitch_gain = pitch_gain - 0.1f;
+										printf("pitch stabilizer gain -.1 - pitch_gain = %8.4f",(double)pitch_gain);
+									break;
+									case 0x54:     // T
+										// roll stabilizer gain +.1
+										roll_gain = roll_gain + 0.1f;
+										printf("roll stabilizer gain +.1 - roll_gain = %8.4f",(double)roll_gain);
+									break;
+									case 0x42:     // B
+										// roll stabilizer gain -.1
+										roll_gain = roll_gain - 0.1f;
+										printf("roll stabilizer gain -.1 - roll_gain = %8.4f",(double)roll_gain);
+									break;
+									case 0x49:     // I
+										// pitch stabilizer dominance +.025
+										pitch_dominance = pitch_dominance + 0.025f;
+										printf("pitch stabilizer dominance +.025 - pitch_dominance = %8.4f",(double)pitch_dominance);
+									break;
+									case 0x3B:     // ;
+										// pitch stabilizer dominance -.025
+										pitch_dominance = pitch_dominance - 0.025f;
+										printf("pitch stabilizer dominance -.025 - pitch_dominance = %8.4f",(double)pitch_dominance);
+									break;
+									case 0x4F:     // O
+										// roll stabilizer dominance +.1
+										roll_dominance = roll_dominance + 0.1f;
+										printf("roll stabilizer dominance +.1 - roll_dominance = %8.4f",(double)roll_dominance);
+									break;
+									case 0x3A:     // :
+										// roll stabilizer dominance -.1
+										roll_dominance = roll_dominance - 0.1f;
+										printf("roll stabilizer dominance -.1 - roll_dominance = %8.4f",(double)roll_dominance);
+									break;
+									case 0x2A:     // *
+										// actuator_limit +.1
+										actuator_limit = actuator_limit + 0.1f;
+										printf("actuator_limit +.1 = %8.4f",(double)actuator_limit);
+									break;
+									case 0x2F:     // /
+										// actuator_limit -.1
+										actuator_limit = actuator_limit - 0.1f;
+										printf("actuator_limit -.1 = %8.4f",(double)actuator_limit);
+									break;
 
-								}
-							}
-							/* sanity check and publish actuator outputs */
-							if (isfinite(actuators.control[0]) &&
-								isfinite(actuators.control[1]) &&
-								isfinite(actuators.control[2]) &&
-								isfinite(actuators.control[3])) {
-
-								actuators.timestamp = hrt_absolute_time();
-								orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
-								orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
-							}
+								} // switch c_key
+							} // if key pressed
 
 							/* copy attitude topic which is produced by attitude estimator */
 							orb_copy(ORB_ID(vehicle_attitude), _v_att_sub, &_v_att);
@@ -415,6 +498,69 @@ int ROV_main(int argc, char *argv[])
         				    orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
         				    /* copy battery status into local buffer */
         				    orb_copy(ORB_ID(battery_status), _bat_stat_sub, &_bat_stat);
+
+    				    	if (manual) {
+    				    		manual = false;
+    				    	} else {
+        				    	if (autopilot) {
+        				    		if (oldautopilot) { // OLD CONTROLLER BASED ON RAW SENSOR MEASUREMENTS
+										// gyro & acc controlled
+										// roll moment when y-axis is not horizontal
+										actuators.control[0] = roll_gain /10 * raw.accelerometer_m_s2[1];
+										// yaw moment when omz not yawrate_set and y and x axes are in horizontal plane
+										actuators.control[2] = yawrate_gain * (yawrate_set - raw.gyro1_rad_s[2])
+												/(1+abs(pitch_dominance/10*raw.accelerometer_m_s2[0])+abs(roll_dominance/10*raw.accelerometer_m_s2[1]));
+										// forward thrust when nose is directed horizontally
+										actuators.control[3] = thrust_set
+												/(1+abs(pitch_dominance/10*raw.accelerometer_m_s2[0])+abs(roll_dominance/10*raw.accelerometer_m_s2[1]));
+										// use autodepth or pitch compensator
+										if (autodepth) {
+											// pitch moment when x-axis is not horizontal, compensated with depth measurement and depth setpoint
+											actuators.control[1] = pitch_gain/10 * (raw.accelerometer_m_s2[0]) + autodepth_gain * ( raw.adc_voltage_v[6] - depth_setpoint);
+										} else {
+											// pitch moment when x-axis is not horizontal, compensated with pitch setpoint
+											actuators.control[1] = pitch_gain/10 * (raw.accelerometer_m_s2[0] + pitch_setpoint);
+										}
+        				    		} else { // NEW CONTROLLER BASED ON EKF ESTIMATES
+										// gyro & acc controlled
+										// roll moment when y-axis is not horizontal
+										actuators.control[0] = roll_gain * _v_att.roll - dgain * _v_att.rollspeed;
+										// yaw moment when omz not yawrate_set and y and x axes are in horizontal plane
+										actuators.control[2] = yawrate_gain * (yawrate_set - _v_att.yawspeed)
+												/(1+abs(roll_dominance * _v_att.roll)+abs(pitch_dominance * _v_att.pitch));
+										// forward thrust when nose is directed horizontally
+										actuators.control[3] = thrust_set
+												/(1+abs(roll_dominance * _v_att.roll)+abs(pitch_dominance * _v_att.pitch));
+										// use autodepth or pitch compensator
+										float thrust_sgn =  (thrust_set > 0) - (thrust_set < 0);
+										if (autodepth) {
+											// pitch moment when x-axis is not horizontal, compensated with depth measurement and depth setpoint
+											actuators.control[1] = pitch_gain * (_v_att.pitch) + thrust_sgn * autodepth_gain * ( raw.adc_voltage_v[6] - depth_setpoint) - dgain * _v_att.pitchspeed;
+										} else {
+											// pitch moment when x-axis is not horizontal, compensated with pitch setpoint
+											actuators.control[1] = pitch_gain * (_v_att.pitch + thrust_sgn * pitch_setpoint) - dgain * _v_att.pitchspeed;
+										}
+        				    		} // oldautopilot
+        				    	} // autopilot
+    				    	} // manual
+
+
+
+							/* sanity check and publish actuator outputs */
+							if (isfinite(actuators.control[0]) &&
+								isfinite(actuators.control[1]) &&
+								isfinite(actuators.control[2]) &&
+								isfinite(actuators.control[3])) {
+								actuators.control[0] = fmax(fmin(actuators.control[0] * actuator_limit, actuator_limit), -actuator_limit);
+								actuators.control[1] = fmax(fmin(actuators.control[1] * actuator_limit, actuator_limit), -actuator_limit);
+								actuators.control[2] = fmax(fmin(actuators.control[2] * actuator_limit, actuator_limit), -actuator_limit);
+								actuators.control[3] = fmax(fmin(actuators.control[3] * actuator_limit, actuator_limit), -actuator_limit);
+
+								actuators.timestamp = hrt_absolute_time();
+								orb_publish(ORB_ID(actuator_armed), armed_pub, &armed);
+								orb_publish(ORB_ID(actuator_controls_0), actuator_pub_fd, &actuators);
+							}
+
 
 
     				    	/* Plot to terminal */
@@ -430,12 +576,12 @@ int ROV_main(int argc, char *argv[])
 
     				    	/* Print sensor & EKF values */
 
-//    				    	printf("Snrs:\n Pres:\t%8.4f\n",
-//    				    			(double)raw.baro_pres_mbar);
-//
-//    				    	printf("Temp:\t%8.4f\n",
-//    				    			(double)raw.baro_temp_celcius);
-//
+    				    	printf("Snrs:\n Pres:\t%8.4f\n",
+    				    			(double)raw.baro_pres_mbar);
+
+    				    	printf("Temp:\t%8.4f\n",
+    				    			(double)raw.baro_temp_celcius);
+
     				    	printf("Ang:\t%8.4f\t%8.4f\t%8.4f\n",
     				    			(double)_v_att.roll,
     				    			(double)_v_att.pitch,
@@ -451,8 +597,18 @@ int ROV_main(int argc, char *argv[])
 
     				    	printf("ADC 10:\t%8.4f\n",
    				    			(double)raw.adc_voltage_v[6]);
-	    				    printf("BAT:\t%8.4f\n \n",
-	    				    	(double)_bat_stat.voltage_filtered_v);
+	    				    printf("BAT:\t%8.4f\t AMP:\t%8.4f\n \n",
+	    				    		(double)_bat_stat.voltage_filtered_v,
+	    				    		(double)_bat_stat.current_a);
+
+	    				    printf("Autopilot:\t%d\n Manual\t\t%d\n \n",
+	    				    	autopilot,manual);
+
+    				    	printf("Control:\t%8.4f\t%8.4f\t%8.4f\t%8.4f\n",
+    				    			(double)actuators.control[0],
+    				    			(double)actuators.control[1],
+    				    			(double)actuators.control[2],
+    				    			(double)actuators.control[3]);
 
     	    				stime = hrt_absolute_time();
     				    	}
