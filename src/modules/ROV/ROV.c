@@ -126,20 +126,26 @@ int ROV_main(int argc, char *argv[])
     		fds.events = POLLIN;
 
 			// controller tuning parameters
-    		float dgain = 0.05;
+    		float dgain = 0.05f;
 			float pitch_gain = 1.0f; // gain for uprighting moment (pitch)
-			float roll_gain = 2.0f; // gain for roll compensator
+			float pitch_set = 0.0f; // wanted pitch
+			float pitchspeed_set = 0.0f; // wanted pitchspeed
+			float roll_gain = 0.4f; // gain for roll compensator
+			float roll_set  = 0.0f; // wanted roll
+			float rollspeed_set  = 0.0f; // wanted rollspeed
 			float pitch_dominance = 5.0f; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (x-axis)
 			float roll_dominance = pitch_dominance; // gain for inverse influence on thrust and yaw when vehicle is not aligned in plane (y-axis)
-			float yawrate_gain = 1.0f; // yaw rate gain
-			float yawrate_set = 0.0f; // setpoint yaw rate
-			float yawrate_max = 2.0f; // maximum yaw rate for autopilot
+			float yaw_gain = 0.0f; // yaw gain
+			float yaw_set = 0.0f; // setpoint yaw rate
+			float yawspeed_gain = 0.5f; // yaw rate gain
+			float yawspeed_set = 0.0f; // setpoint yaw rate
+			float yawspeed_max = 1.0f; // maximum yaw rate for autopilot
 			float thrust_set = 0.0f; // thrust setpoint
-			float thrust_max = 0.3f; // thrust setpoint
-			float pitch_setpoint = 0.0f; // pitch setpoint
+			float thrust_max = 0.15f; // max thrust for autopilot
+			float pitch_depth_compensator = 0.0f; // pitch setpoint
 			float actuator_limit = 0.4f; // actuator limit here instead of in mixer for adaptive change
-			float depth_setpoint = 0.4f;
-			float autodepth_gain = 5.0f;
+			float depth_set = 0.4f;      // [ms]
+			float autodepth_gain = 5.0f; // [rad/m]
 			// status parameters
 			bool autopilot = false;
 			bool oldautopilot = false;
@@ -208,6 +214,14 @@ int ROV_main(int argc, char *argv[])
 
 										exit(0); //return
 									break;
+								    case 0x30:         // 0
+										// Emergency stop
+										actuators.control[0] = 0.0f;
+										actuators.control[1] = 0.0f;
+										actuators.control[2] = 0.0f;
+										actuators.control[3] = 0.0f;
+										autopilot = false;
+									break;
 									case 0x20:         // space
 										// Emergency stop
 										actuators.control[0] = 0.0f;
@@ -231,12 +245,12 @@ int ROV_main(int argc, char *argv[])
 									case 0x38:		// 8
 										// pitch up
 										manual=true;actuators.control[0] = 0.0f;actuators.control[1] = 0.0f;actuators.control[2] = 0.0f;actuators.control[3] = 0.0f;
-										actuators.control[1] = -1.0f;
+										actuators.control[1] = +1.0f;
 									break;
 									case 0x35:		// 5
 										// pitch down
 										manual=true;actuators.control[0] = 0.0f;actuators.control[1] = 0.0f;actuators.control[2] = 0.0f;actuators.control[3] = 0.0f;
-										actuators.control[1] = +1.0f;
+										actuators.control[1] = -1.0f;
 									break;
 									case 0x34:		// 4
 										// turn left
@@ -253,7 +267,7 @@ int ROV_main(int argc, char *argv[])
 										manual=true;actuators.control[0] = 0.0f;actuators.control[1] = 0.0f;actuators.control[2] = 0.0f;actuators.control[3] = 0.0f;
 										actuators.control[3] = +1.0f;
 									break;
-								    case 0x30:         // 0
+								    case 0x31:         // 1
 										// Rev. Acc
 								    	manual=true;actuators.control[0] = 0.0f;actuators.control[1] = 0.0f;actuators.control[2] = 0.0f;actuators.control[3] = 0.0f;
 										actuators.control[3] = -1.0f;
@@ -277,31 +291,31 @@ int ROV_main(int argc, char *argv[])
 								    case 0x61:		// a
 										// autodepth controller
 										autodepth = true;
-										printf("autodepth activated, setpoint = %8.4f V",(double)depth_setpoint);
+										printf("autodepth activated, setpoint = %8.4f V",(double)depth_set);
 									break;
 								    case 0x79:		// y
 										// autodepth controller off, pitch controller on
 										autodepth = false;
-										printf("autodepth deactivated, pitch control activated, setpoint = %8.4f",(double)pitch_setpoint);
+										printf("autodepth deactivated, pitch control activated, setpoint = %8.4f",(double)pitch_depth_compensator);
 									break;
 									case 0x3C:     // >
 										// depth setpoint -.1 or pitch setpoint +.1
 										if (autodepth) {
-											depth_setpoint = depth_setpoint - 0.1f;
-											printf("depth_setpoint -.1 = %8.4f",(double)depth_setpoint);
+											depth_set = depth_set - 0.1f;
+											printf("depth_set -.1 = %8.4f",(double)depth_set);
 										} else {
-											pitch_setpoint = pitch_setpoint + 0.1f;
-											printf("pitch_setpoint +.1 = %8.4f",(double)pitch_setpoint);
+											pitch_depth_compensator = pitch_depth_compensator + 0.1f;
+											printf("pitch_depth_compensator +.1 = %8.4f",(double)pitch_depth_compensator);
 										}
 									break;
 									case 0x3E:     // <
 										// depth setpoint +.1 or pitch setpoint -.1
 										if (autodepth) {
-											depth_setpoint = depth_setpoint + 0.1f;
-											printf("depth_setpoint +.1 = %8.4f",(double)depth_setpoint);
+											depth_set = depth_set + 0.1f;
+											printf("depth_set +.1 = %8.4f",(double)depth_set);
 										} else {
-											pitch_setpoint = pitch_setpoint - 0.1f;
-											printf("pitch_setpoint -.1 = %8.4f",(double)pitch_setpoint);
+											pitch_depth_compensator = pitch_depth_compensator - 0.1f;
+											printf("pitch_depth_compensator -.1 = %8.4f",(double)pitch_depth_compensator);
 										}
 									break;
 
@@ -313,77 +327,77 @@ int ROV_main(int argc, char *argv[])
 									// neutral position stabilizing
 									case 0x6A:		// j
 										thrust_set = 0.0f;
-										yawrate_set =  0.0f*yawrate_max;
+										yawspeed_set =  0.0f*yawspeed_max;
 									break;
 									case 0x68:		// h
 										// slow left
 										thrust_set = 0.0f;
-										yawrate_set = -0.4f*yawrate_max;
+										yawspeed_set = -0.4f*yawspeed_max;
 									break;
 									case 0x67:		// g
 										// hard left
 										thrust_set = 0.0f;
-										yawrate_set = -1.0f*yawrate_max;
+										yawspeed_set = -1.0f*yawspeed_max;
 									break;
 									case 0x6B:		// k
 										// slow right
 										thrust_set = 0.0f;
-										yawrate_set = 0.4f*yawrate_max;
+										yawspeed_set = 0.4f*yawspeed_max;
 									break;
 									case 0x6C:		// l
 										// hard right
 										thrust_set = 0.0f;
-										yawrate_set = 1.0f*yawrate_max;
+										yawspeed_set = 1.0f*yawspeed_max;
 									break;
 									case 0x75:		// u
 										// forward
 										thrust_set = thrust_max;
-										yawrate_set = 0.0f*yawrate_max;
+										yawspeed_set = 0.0f*yawspeed_max;
 									break;
 									case 0x7A:		// z
 										// forward slow left
 										thrust_set = thrust_max;
-										yawrate_set = -0.4f*yawrate_max;
+										yawspeed_set = -0.4f*yawspeed_max;
 									break;
 									case 0x74:		// t
 										// forward hard left
 										thrust_set = thrust_max;
-										yawrate_set = -1.0f*yawrate_max;
+										yawspeed_set = -1.0f*yawspeed_max;
 									break;
 									case 0x69:		// i
 										// forward slow right
 										thrust_set = thrust_max;
-										yawrate_set = 0.4f*yawrate_max;
+										yawspeed_set = 0.4f*yawspeed_max;
 									break;
 									case 0x6F:		// o
 										// forward hard right
 										thrust_set = thrust_max;
-										yawrate_set = 1.0f*yawrate_max;
+										yawspeed_set = 1.0f*yawspeed_max;
 									break;
 									case 0x6D:		// m
 										// backward
 										thrust_set = -thrust_max;
-										yawrate_set = 0.0f*yawrate_max;
+										yawspeed_set = 0.0f*yawspeed_max;
 									break;
 									case 0x6E:		// n
 										// backward slow left
 										thrust_set = -thrust_max;
-										yawrate_set = -0.4f*yawrate_max;
+										yawspeed_set = -0.4f*yawspeed_max;
 									break;
 									case 0x62:		// b
 										// backward hard left
 										thrust_set = -thrust_max;
-										yawrate_set = -1.0f*yawrate_max;
+										yawspeed_set = -1.0f*yawspeed_max;
 									break;
 									case 0x2C:		// ,
 										// backward slow right
 										thrust_set = -thrust_max;
-										yawrate_set = 0.4f*yawrate_max;
+										yawspeed_set = 0.4f*yawspeed_max;
 									break;
 									case 0x2E:		// .
 										// backward hard right
 										thrust_set = -thrust_max;
-										yawrate_set = 1.0f*yawrate_max;
+										yawspeed_set = 1.0f*yawspeed_max;
 									break;
 
 
@@ -400,83 +414,83 @@ int ROV_main(int argc, char *argv[])
 									break;
 									case 0x41:		// A
 										// auto depth gain +.1
-										autodepth_gain = autodepth_gain * 1.1f;
-										printf("autodepth_gain * 1.1f; = %8.4f",(double)autodepth_gain);
+										autodepth_gain = autodepth_gain +.1f;
+										printf("autodepth_gain +.1f; = %8.4f",(double)autodepth_gain);
 									break;
 									case 0x59:		// Y
 										// auto depth gain -.1
-										autodepth_gain = autodepth_gain / 1.1f;
-										printf("autodepth_gain / 1.1f; = %8.4f",(double)autodepth_gain);
+										autodepth_gain = autodepth_gain -.1f;
+										printf("autodepth_gain -.1f; = %8.4f",(double)autodepth_gain);
 									break;
 									case 0x55:     // U
 										// thrust gain +.1
-										thrust_max = thrust_max + 0.1f;
+										thrust_max = fmin(1.0f,thrust_max + 0.05f);
 										printf("thrust gain +.1 - thrust_max = %8.4f",(double)thrust_max);
 									break;
 									case 0x4D:     // M
 										// thrust gain -.1
-										thrust_max = thrust_max - 0.1f;
+										thrust_max = fmax(0.0f,thrust_max - 0.1f);
 										printf("thrust gain -.1 - thrust_max = %8.4f",(double)thrust_max);
 									break;
 									case 0x4C:     // L
-										// yaw rate max +.1
-										yawrate_max = yawrate_max + 0.1f;
-										printf("yaw rate max +.1 - yawrate_max = %8.4f",(double)yawrate_max);
+										// yaw rate max *1.1
+										yawspeed_max = yawspeed_max *1.1f;
+										printf("yaw rate max *1.1 - yawspeed_max = %8.4f",(double)yawspeed_max);
 									break;
 									case 0x47:     // G
-										// yaw rate max -.1
-										yawrate_max = yawrate_max - 0.1f;
-										printf("yaw rate max -.1 - yawrate_max = %8.4f",(double)yawrate_max);
+										// yaw rate max /1.1
+										yawspeed_max = yawspeed_max /1.1f;
+										printf("yaw rate max /1.1 - yawspeed_max = %8.4f",(double)yawspeed_max);
 									break;
 									case 0x4B:     // K
 										// yaw rate gain +.1
-										yawrate_gain = yawrate_gain + 0.1f;
-										printf("yaw rate gain +.1 - yawrate_gain = %8.4f",(double)yawrate_gain);
+										yawspeed_gain = yawspeed_gain + 0.1f;
+										printf("yaw rate gain +.1 - yawspeed_gain = %8.4f",(double)yawspeed_gain);
 									break;
 									case 0x48:     // H
-										// yaw rate gain -.1
-										yawrate_gain = yawrate_gain - 0.1f;
-										printf("yaw rate gain -.1 - yawrate_gain = %8.4f",(double)yawrate_gain);
+										// yaw rate gain /1.1
+										yawspeed_gain = yawspeed_gain /1.1f;
+										printf("yaw rate gain /1.1 - yawspeed_gain = %8.4f",(double)yawspeed_gain);
 									break;
 									case 0x5A:     // Z
-										// pitch stabilizer gain +.1
-										pitch_gain = pitch_gain + 0.1f;
-										printf("pitch stabilizer gain +.1 - pitch_gain = %8.4f",(double)pitch_gain);
+										// pitch stabilizer gain *1.1
+										pitch_gain = pitch_gain *1.1f;
+										printf("pitch stabilizer gain *1.1 - pitch_gain = %8.4f",(double)pitch_gain);
 									break;
 									case 0x4E:     // N
-										// pitch stabilizer gain -.1
-										pitch_gain = pitch_gain - 0.1f;
-										printf("pitch stabilizer gain -.1 - pitch_gain = %8.4f",(double)pitch_gain);
+										// pitch stabilizer gain /1.1
+										pitch_gain = pitch_gain /1.1f;
+										printf("pitch stabilizer gain /1.1 - pitch_gain = %8.4f",(double)pitch_gain);
 									break;
 									case 0x54:     // T
-										// roll stabilizer gain +.1
-										roll_gain = roll_gain + 0.1f;
-										printf("roll stabilizer gain +.1 - roll_gain = %8.4f",(double)roll_gain);
+										// roll stabilizer gain *1.1
+										roll_gain = roll_gain *1.1f;
+										printf("roll stabilizer gain *1.1 - roll_gain = %8.4f",(double)roll_gain);
 									break;
 									case 0x42:     // B
-										// roll stabilizer gain -.1
-										roll_gain = roll_gain - 0.1f;
-										printf("roll stabilizer gain -.1 - roll_gain = %8.4f",(double)roll_gain);
+										// roll stabilizer gain /1.1
+										roll_gain = roll_gain /1.1f;
+										printf("roll stabilizer gain /1.1 - roll_gain = %8.4f",(double)roll_gain);
 									break;
 									case 0x49:     // I
-										// pitch stabilizer dominance +.025
-										pitch_dominance = pitch_dominance + 0.025f;
-										printf("pitch stabilizer dominance +.025 - pitch_dominance = %8.4f",(double)pitch_dominance);
+										// pitch stabilizer dominance *1.1
+										pitch_dominance = pitch_dominance *1.1f;
+										printf("pitch stabilizer dominance *1.1 - pitch_dominance = %8.4f",(double)pitch_dominance);
 									break;
 									case 0x3B:     // ;
-										// pitch stabilizer dominance -.025
-										pitch_dominance = pitch_dominance - 0.025f;
-										printf("pitch stabilizer dominance -.025 - pitch_dominance = %8.4f",(double)pitch_dominance);
+										// pitch stabilizer dominance /1.1
+										pitch_dominance = pitch_dominance /1.1f;
+										printf("pitch stabilizer dominance /1.1 - pitch_dominance = %8.4f",(double)pitch_dominance);
 									break;
 									case 0x4F:     // O
-										// roll stabilizer dominance +.1
-										roll_dominance = roll_dominance + 0.1f;
-										printf("roll stabilizer dominance +.1 - roll_dominance = %8.4f",(double)roll_dominance);
+										// roll stabilizer dominance *1.1
+										roll_dominance = roll_dominance *1.1f;
+										printf("roll stabilizer dominance *1.1 - roll_dominance = %8.4f",(double)roll_dominance);
 									break;
 									case 0x3A:     // :
-										// roll stabilizer dominance -.1
-										roll_dominance = roll_dominance - 0.1f;
-										printf("roll stabilizer dominance -.1 - roll_dominance = %8.4f",(double)roll_dominance);
+										// roll stabilizer dominance /1.1
+										roll_dominance = roll_dominance /1.1f;
+										printf("roll stabilizer dominance /1.1 - roll_dominance = %8.4f",(double)roll_dominance);
 									break;
 									case 0x2A:     // *
 										// actuator_limit +.1
@@ -506,9 +520,9 @@ int ROV_main(int argc, char *argv[])
         				    		if (oldautopilot) { // OLD CONTROLLER BASED ON RAW SENSOR MEASUREMENTS
 										// gyro & acc controlled
 										// roll moment when y-axis is not horizontal
-										actuators.control[0] = roll_gain /10 * raw.accelerometer_m_s2[1];
-										// yaw moment when omz not yawrate_set and y and x axes are in horizontal plane
-										actuators.control[2] = yawrate_gain * (yawrate_set - raw.gyro1_rad_s[2])
+										actuators.control[0] = roll_gain /5 * raw.accelerometer_m_s2[1];
+										// yaw moment when omz not yawspeed_set and y and x axes are in horizontal plane
+										actuators.control[2] = yawspeed_gain * (yawspeed_set - raw.gyro1_rad_s[2])
 												/(1+abs(pitch_dominance/10*raw.accelerometer_m_s2[0])+abs(roll_dominance/10*raw.accelerometer_m_s2[1]));
 										// forward thrust when nose is directed horizontally
 										actuators.control[3] = thrust_set
@@ -516,17 +530,17 @@ int ROV_main(int argc, char *argv[])
 										// use autodepth or pitch compensator
 										if (autodepth) {
 											// pitch moment when x-axis is not horizontal, compensated with depth measurement and depth setpoint
-											actuators.control[1] = pitch_gain/10 * (raw.accelerometer_m_s2[0]) + autodepth_gain * ( raw.adc_voltage_v[6] - depth_setpoint);
+											actuators.control[1] = pitch_gain/10 * (-raw.accelerometer_m_s2[0]) + autodepth_gain * ( raw.adc_voltage_v[6] - depth_set);
 										} else {
 											// pitch moment when x-axis is not horizontal, compensated with pitch setpoint
-											actuators.control[1] = pitch_gain/10 * (raw.accelerometer_m_s2[0] + pitch_setpoint);
+											actuators.control[1] = pitch_gain/10 * (-raw.accelerometer_m_s2[0] + pitch_depth_compensator);
 										}
         				    		} else { // NEW CONTROLLER BASED ON EKF ESTIMATES
 										// gyro & acc controlled
 										// roll moment when y-axis is not horizontal
-										actuators.control[0] = roll_gain * _v_att.roll - dgain * _v_att.rollspeed;
-										// yaw moment when omz not yawrate_set and y and x axes are in horizontal plane
-										actuators.control[2] = yawrate_gain * (yawrate_set - _v_att.yawspeed)
+										actuators.control[0] = roll_gain * (roll_set - _v_att.roll) + dgain * (rollspeed_set - _v_att.rollspeed);
+										// yaw moment when yawspeed not yawspeed_set and y and x axes are in horizontal plane
+										actuators.control[2] = yaw_gain * (yaw_set - _v_att.yaw) + yawspeed_gain * (yawspeed_set - _v_att.yawspeed)
 												/(1+abs(roll_dominance * _v_att.roll)+abs(pitch_dominance * _v_att.pitch));
 										// forward thrust when nose is directed horizontally
 										actuators.control[3] = thrust_set
@@ -534,12 +548,13 @@ int ROV_main(int argc, char *argv[])
 										// use autodepth or pitch compensator
 										float thrust_sgn =  (thrust_set > 0) - (thrust_set < 0);
 										if (autodepth) {
-											// pitch moment when x-axis is not horizontal, compensated with depth measurement and depth setpoint
-											actuators.control[1] = pitch_gain * (_v_att.pitch) + thrust_sgn * autodepth_gain * ( raw.adc_voltage_v[6] - depth_setpoint) - dgain * _v_att.pitchspeed;
+											// pitch set [rad] compensated with depth measurement and depth setpoint [m]
+											pitch_set = thrust_sgn * autodepth_gain  * ( .3f * raw.adc_voltage_v[6] - depth_set);
 										} else {
-											// pitch moment when x-axis is not horizontal, compensated with pitch setpoint
-											actuators.control[1] = pitch_gain * (_v_att.pitch + thrust_sgn * pitch_setpoint) - dgain * _v_att.pitchspeed;
+											// pitch moment when x-axis is not horizontal, compensated with pitch depth setpoint
+											pitch_set = thrust_sgn * pitch_depth_compensator;
 										}
+										actuators.control[1] = pitch_gain * (pitch_set - _v_att.pitch) + dgain * (pitchspeed_set - _v_att.pitchspeed);
         				    		} // oldautopilot
         				    	} // autopilot
     				    	} // manual
@@ -601,8 +616,8 @@ int ROV_main(int argc, char *argv[])
 	    				    		(double)_bat_stat.voltage_filtered_v,
 	    				    		(double)_bat_stat.current_a);
 
-	    				    printf("Autopilot:\t%d\n Manual\t\t%d\n \n",
-	    				    	autopilot,manual);
+	    				    printf("Autopilot:\t%d\t OldAutopilot:\t%d\t AutoDepth:\t%d\t Manual:\t%d\n \n",
+	    				    	autopilot,oldautopilot,autodepth,manual);
 
     				    	printf("Control:\t%8.4f\t%8.4f\t%8.4f\t%8.4f\n",
     				    			(double)actuators.control[0],
