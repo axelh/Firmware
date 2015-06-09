@@ -1,7 +1,9 @@
 /****************************************************************************
  *
  *   Copyright (C) 2014 PX4 Development Team. All rights reserved.
- *   Author: Eugen Solowjow <eugen.solowjow@gmail.com>
+ *   Authors: Eugen Solowjow <eugen.solowjow@gmail.com> &
+ *   		  Axel Hackbarth <axel.hackbarth@gmail.com>
+ *   http://www.tuhh.de/mum/forschung/forschungsgebiete-und-projekte/fluid-field-estimation-and-source-localization-by-dynamic-positioning-of-autonomous-underwater-sensing-vehicles.html
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -127,7 +129,7 @@ int ROV_main(int argc, char *argv[])
 
 			// controller tuning parameters
     		float dgain = 0.05f;
-			float roll_gain = 0.4f; // gain for roll compensator
+			float roll_gain = 0.8f; // gain for roll compensator
 			float roll_set  = 0.0f; // wanted roll
 			float rollspeed_set  = 0.0f; // wanted rollspeed
 			float roll_dominance = 5.0f; // gain for inverse influence on thrust and yaw when vehicle roll angle is not as desired
@@ -140,7 +142,7 @@ int ROV_main(int argc, char *argv[])
 			float yawspeed_gain = 0.5f; // yaw rate gain
 			float yawspeed_set = 0.0f; // setpoint yaw rate
 			float yawspeed_max = 1.0f; // maximum yaw rate for autopilot
-			float yaw_dominance = 0; // gain for inverse influence on thrust and yaw when vehicle yaw angle is not as desired
+//			float yaw_dominance = 0; // gain for inverse influence on thrust and yaw when vehicle yaw angle is not as desired
 			float thrust_set = 0.0f; // thrust setpoint
 			float thrust_max = 0.15f; // max thrust for autopilot
 			float pitch_depth_compensator = 0.0f; // pitch setpoint
@@ -558,20 +560,20 @@ int ROV_main(int argc, char *argv[])
         				    		if (oldautopilot) { // OLD CONTROLLER BASED ON RAW SENSOR MEASUREMENTS
 										// gyro & acc controlled
 										// roll moment when y-axis is not horizontal
-										actuators.control[0] = roll_gain /5 * raw.accelerometer_m_s2[1];
+										actuators.control[0] = roll_gain /10.0f * raw.accelerometer_m_s2[1];
 										// yaw moment when omz not yawspeed_set and y and x axes are in horizontal plane
 										actuators.control[2] = yawspeed_gain * (yawspeed_set - raw.gyro1_rad_s[2])
-												/(1+abs(pitch_dominance/10*raw.accelerometer_m_s2[0])+abs(roll_dominance/10*raw.accelerometer_m_s2[1]));
+												/(1.0f+(float)fabs(pitch_dominance/10.0f*raw.accelerometer_m_s2[0])+(float)fabs(roll_dominance/10.0f*raw.accelerometer_m_s2[1]));
 										// forward thrust when nose is directed horizontally
 										actuators.control[3] = thrust_set
-												/(1+abs(pitch_dominance/10*raw.accelerometer_m_s2[0])+abs(roll_dominance/10*raw.accelerometer_m_s2[1]));
+												/(1.0f+(float)fabs(pitch_dominance/10.0f*raw.accelerometer_m_s2[0])+(float)fabs(roll_dominance/10.0f*raw.accelerometer_m_s2[1]));
 										// use autodepth or pitch compensator
 										if (autodepth) {
 											// pitch moment when x-axis is not horizontal, compensated with depth measurement and depth setpoint
-											actuators.control[1] = pitch_gain * (-raw.accelerometer_m_s2[0]/10) + autodepth_gain * ( raw.adc_voltage_v[6] - depth_set);
+											actuators.control[1] = pitch_gain * (-raw.accelerometer_m_s2[0]/10.0f) + autodepth_gain * ( raw.adc_voltage_v[6] - depth_set);
 										} else {
 											// pitch moment when x-axis is not horizontal, compensated with pitch setpoint
-											actuators.control[1] = pitch_gain * (-raw.accelerometer_m_s2[0]/10 + pitch_depth_compensator);
+											actuators.control[1] = pitch_gain * (-raw.accelerometer_m_s2[0]/10.0f + pitch_depth_compensator);
 										}
         				    		} else { // NEW CONTROLLER BASED ON EKF ESTIMATES
 										// gyro & acc controlled
@@ -586,24 +588,25 @@ int ROV_main(int argc, char *argv[])
 										}
 										// roll moment when y-axis is not horizontal
 										float e_roll = roll_set - _v_att.roll;
-										e_roll = (e_roll > (float)M_PI) ? (e_roll - 2*(float)M_PI) : e_roll;
-										e_roll = (e_roll <-(float)M_PI) ? (e_roll + 2*(float)M_PI) : e_roll;
+										e_roll = (e_roll > (float)M_PI) ? (e_roll - 2.0f*(float)M_PI) : e_roll;
+										e_roll = (e_roll <-(float)M_PI) ? (e_roll + 2.0f*(float)M_PI) : e_roll;
 										// ersetzen mit e_roll = 2*(float)M_PI * (int)(e_roll/(float)M_PI)/2);
 										float e_pitch = pitch_set - _v_att.pitch;
-										e_pitch = (e_pitch > (float)M_PI) ? (e_pitch - 2*(float)M_PI) : e_pitch;
-										e_pitch = (e_pitch <-(float)M_PI) ? (e_pitch + 2*(float)M_PI) : e_pitch;
+										e_pitch = (e_pitch > (float)M_PI) ? (e_pitch - 2.0f*(float)M_PI) : e_pitch;
+										e_pitch = (e_pitch <-(float)M_PI) ? (e_pitch + 2.0f*(float)M_PI) : e_pitch;
 										float e_yaw = yaw_set - _v_att.yaw;
 										e_yaw = (e_yaw > (float)M_PI) ? (e_yaw - 2*(float)M_PI) : e_yaw;
 										e_yaw = (e_yaw <-(float)M_PI) ? (e_yaw + 2*(float)M_PI) : e_yaw;
+										// roll moment for roll angle compensation
 										actuators.control[0] = roll_gain * e_roll + dgain * (rollspeed_set - _v_att.rollspeed);
 										// pitch moment
 										actuators.control[1] = pitch_gain * (e_pitch) + dgain * (pitchspeed_set - _v_att.pitchspeed);
 										// yaw moment when yawspeed not yawspeed_set and roll and pitch are on setpoints
 										actuators.control[2] = yaw_gain * (e_yaw) + yawspeed_gain * (yawspeed_set - _v_att.yawspeed)
-												/(1+roll_dominance * (float)fabs(e_roll)+pitch_dominance * (float)fabs(e_pitch));
+												/(1.0f+roll_dominance * (float)fabs(e_roll)+pitch_dominance * (float)fabs(e_pitch));
 										// forward thrust when nose is directed
 										actuators.control[3] = thrust_set
-												/(1+roll_dominance * (float)fabs(e_roll)+pitch_dominance * (float)fabs(e_pitch));
+												/(1.0f+roll_dominance * (float)fabs(e_roll)+pitch_dominance * (float)fabs(e_pitch));
         				    		} // oldautopilot
         				    	} // autopilot
     				    	} // manual
